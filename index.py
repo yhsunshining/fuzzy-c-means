@@ -1,6 +1,10 @@
 """these are some tools about fcm"""
 # -*- coding: utf-8 -*-
+import matplotlib.pyplot as plt
+import matplotlib.colors as pltColors
+import matplotlib.markers as pltMarkers
 import numpy as np
+import pandas as pd
 import csv
 
 
@@ -82,11 +86,34 @@ def distance(x, y):
     return np.linalg.norm(np_x - np_y)
 
 
-def evaluate(membership, std):
+def evaluate(membership, std, dataSet):
     n = len(std)
+    c = membership.shape[1]
     exp = [np.argmax(item) for item in membership]
-    delta = exp - std
-    return 1 - float(np.count_nonzero(delta)) / n
+    contact = np.column_stack((dataSet, std, exp))
+    colors = pltColors.cnames.keys()
+    hit = 0
+    for i in range(c):
+        mask = contact[:, -1] == i
+        select = contact[mask]
+        x, y = select[:, 0], select[:, 1]
+        # plt.scatter(
+        #     x,
+        #     y,
+        #     c=colors[i],
+        #     label=str(i),
+        #     s=100,
+        #     marker="${}$".format(i),
+        #     alpha=1,
+        #     edgecolors='none')
+        hit += pd.Series(select[:, -2]).value_counts().tolist()[0]
+    # plt.title('Scatter')
+    # plt.xlabel('x')
+    # plt.ylabel('y')
+    # # plt.legend()
+    # plt.grid(True)
+    # plt.show()
+    return float(hit) / n
 
 
 def fcmIteration(U, V, dataSet, m, c):
@@ -112,8 +139,9 @@ if __name__ == '__main__':
     dataSet = loadCsv(dataFilePath)
     classes = dataSet[:, -1]
     dataSet = normalization(dataSet[:, 0:-1])
+
     c = int(15)
     m = int(2)
     U, V, J = fcm(dataSet, m, c)
-    print('Accuracy: {0}%').format(evaluate(U, classes) * 100)
+    print('Accuracy: {0}%').format(evaluate(U, classes, dataSet) * 100)
     print('J: {0}').format(J)
