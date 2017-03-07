@@ -55,7 +55,6 @@ def calcCentriod(membership, dataSet, m):
     n, c = membership.shape
     attrNum = dataSet.shape[1]
     centriod = np.zeros((c, attrNum))
-    print centriod
     membershipPower = np.power(membership, m)
     for row in range(c):
         member = np.zeros(attrNum, dtype=np.float_)
@@ -91,7 +90,7 @@ def evaluate(membership, std):
 
 
 def fcmIteration(U, V, dataSet, m, c):
-    xi = 1e-3
+    xi = 1e-6
     delta = float('inf')
     while delta > xi:
         U = calcMembership(U, V, m)
@@ -109,11 +108,11 @@ def fcm(dataSet, m, c):
 
 
 if __name__ == '__main__':
-    dataFilePath = './data/leaves.csv'
+    dataFilePath = './data/diabetes.csv'
     dataSet = loadCsv(dataFilePath)
     classes = dataSet[:, -1]
     dataSet = normalization(dataSet[:, 0:-1])
-    c = int(11)
+    c = int(2)
     m = int(2)
     U, V, J = fcm(dataSet, m, c)
     print('Accuracy: {0}%').format(evaluate(U, classes) * 100)
