@@ -108,11 +108,12 @@ def fcm(dataSet, m, c):
 
 
 if __name__ == '__main__':
-    dataFilePath = './data/diabetes.csv'
+    dataFilePath = './data/R15.csv'
     dataSet = loadCsv(dataFilePath)
     classes = dataSet[:, -1]
     dataSet = normalization(dataSet[:, 0:-1])
-    c = int(2)
+    c = int(15)
     m = int(2)
     U, V, J = fcm(dataSet, m, c)
     print('Accuracy: {0}%').format(evaluate(U, classes) * 100)
+    print('J: {0}').format(J)
