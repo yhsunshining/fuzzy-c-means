@@ -97,6 +97,7 @@ def evaluate(membership, std, dataSet):
         mask = contact[:, -1] == i
         select = contact[mask]
         x, y = select[:, 0], select[:, 1]
+        """ draw image in 2-d dataset """
         # plt.scatter(
         #     x,
         #     y,
@@ -106,13 +107,16 @@ def evaluate(membership, std, dataSet):
         #     marker="${}$".format(i),
         #     alpha=1,
         #     edgecolors='none')
+        """ end draw """
         hit += pd.Series(select[:, -2]).value_counts().tolist()[0]
+    """ draw image in 2-d dataset """ 
     # plt.title('Scatter')
     # plt.xlabel('x')
     # plt.ylabel('y')
     # # plt.legend()
     # plt.grid(True)
     # plt.show()
+    """ end draw """
     return float(hit) / n
 
 
