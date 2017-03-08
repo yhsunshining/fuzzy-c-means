@@ -139,43 +139,37 @@ def fcm(dataSet, m, c):
     return fcmIteration(U, V, dataSet, m, c)
 
 
-def neighbourhoodV(V, select1, select2):
-    V[[select1, select2], :] = V[[select2, select1], :]
+def neighbourhoodV(V):
+    shape = V.shape
+    _V = (np.random.rand(*shape) - 0.5) * neighbourhoodLength*2 + V.copy()
     return _V
 
 
-def neighbourhoodU(U, select1, select2):
-    U[:, [select1, select2]] = U[:, [select2, select1]]
-    return U
+# def neighbourhoodU(U, select1, select2):
+#     U[:, [select1, select2]] = U[:, [select2, select1]]
+#     return U
 
 
-def neighbourhood(code, neighbour):
-    c = len(code)
-    _code = code.copy()
-    _neighbour = neighbour.copy()
-    select1 = random.randrange(c)
-    select2 = random.randrange(c)
-    while select1 == select2:
-        select2 = random.randrange(c)
-    _code[[select1, select2]] = _code[[select2, select1]]
-    return _code, neighbourhoodU(_neighbour, select1, select2)
+def neighbourhood(neighbour):
+    return neighbourhoodV(neighbour)
 
 
-def tabuJudge(code):
-    tableLength, c = tabuList.shape
-    if not tableLength:
+def tabuJudge(obj):
+    listLength, c, attrNum = tabuList.shape
+    if not listLength:
         return False
-    for i in range(min(tableLength, tabuLength)):
-        if np.count_nonzero(tabuList[i] - code) == 0:
+    for i in range(min(listLength, tabuLength)):
+        if np.sum(np.fabs(tabuList[i] -
+                          obj)) < c * attrNum * 0.5* neighbourhoodLength:
             return True
     return False
 
 
-def updateTable(code):
+def updateTable(tabuObj):
     global tabuList
     if tabuList.shape[0]:
-        tebuTable = np.delete(tabuList, 0, axis=0)
-    tabuList = np.row_stack((tabuList, code))
+        tabuList = np.delete(tabuList, 0, axis=0)
+    tabuList = np.row_stack((tabuList, tabuObj.reshape(1, *tabuObj.shape)))
 
 
 if __name__ == '__main__':
@@ -183,35 +177,35 @@ if __name__ == '__main__':
     dataSet = loadCsv(dataFilePath)
     classes = dataSet[:, -1]
     dataSet = normalization(dataSet[:, 0:-1])
-
     c = int(4)
     m = int(2)
-    U, V, J = fcm(dataSet, m, c)
+    # U, V, J = fcm(dataSet, m, c)
+    U = loadCsv('./tem/user_knowledge_U.csv')
+    V = loadCsv('./tem/user_knowledge_V.csv')
+    J = 36.1533220952
     print('Accuracy: {0}%').format(evaluate(U, classes, dataSet) * 100)
     print('J: {0}').format(J)
     _U, _V, _J = U, V, J
-    _code = code = np.array(range(c))
     global tabuList
     global tabuLength
-    tabuList = np.array([[]]).reshape(0, c)
+    global neighbourhoodLength
+    neighbourhoodLength = 0.01
+    tabuList = np.array([]).reshape(0, *V.shape)
     tabuLength = 5
-    maxSearchNum = 20
-    MAX_ITERATION = 100
+    maxSearchNum = 6
+    MAX_ITERATION = 20
     curTimes = 0
     xi = 1e-6
     lastlocationJ = _J
     while (curTimes < MAX_ITERATION):
         searchNum = 0
         locationJ = float('inf')
-        locationCode = None
         locationU = locationV = None
         while (searchNum < maxSearchNum):
-            temCode, neighbourU = neighbourhood(code, U)
-            neighbourV = calcCentriod(neighbourU, dataSet, m)
-            if not tabuJudge(temCode):
+            neighbourV = neighbourhood(V)
+            if not tabuJudge(neighbourV):
                 temU, temV, temJ = fcmIteration(U, neighbourV, dataSet, m, c)
                 if temJ < locationJ:
-                    locationCode = temCode.copy()
                     locationU = temU
                     locationV = temV
                     locationJ = temJ
@@ -219,16 +213,13 @@ if __name__ == '__main__':
         print locationJ
         if locationJ < _J:
             _U, _V, _J = locationU, locationV, locationJ
-            _code = locationCode.copy()
-        code = locationCode.copy()
         U, V = locationU, locationV
-        updateTable(locationCode)
-        if abs(lastlocationJ-locationJ) <= xi:
+        updateTable(locationV)
+        if abs(lastlocationJ - locationJ) <= xi:
             break
         else:
             lastlocationJ = locationJ
         curTimes += 1
-            
 
     print('Accuracy: {0}%').format(evaluate(_U, classes, dataSet) * 100)
     print('J: {0}').format(_J)
