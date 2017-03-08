@@ -6,6 +6,7 @@ import matplotlib.markers as pltMarkers
 import numpy as np
 import pandas as pd
 import csv
+import random
 
 
 def loadCsv(filename):
@@ -109,7 +110,7 @@ def evaluate(membership, std, dataSet):
         #     edgecolors='none')
         """ end draw """
         hit += pd.Series(select[:, -2]).value_counts().tolist()[0]
-    """ draw image in 2-d dataset """ 
+    """ draw image in 2-d dataset """
     # plt.title('Scatter')
     # plt.xlabel('x')
     # plt.ylabel('y')
@@ -138,14 +139,82 @@ def fcm(dataSet, m, c):
     return fcmIteration(U, V, dataSet, m, c)
 
 
+def neighbourhood(code, V):
+    c = len(code)
+    _code = code.copy()
+    _V = V.copy()
+    select1 = random.randrange(c)
+    select2 = random.randrange(c)
+    while select1 == select2:
+        select2 = random.randrange(c)
+    _code[[select1, select2]] = _code[[select2, select1]]
+    _V[[select1, select2], :] = _V[[select2, select1], :]
+    return _code, _V
+
+
+def tabuJudge(code):
+    tableLength, c = tabuTable.shape
+    if not tableLength:
+        return False
+    for i in range(min(tableLength, tabuLength)):
+        if np.count_nonzero(tabuTable[i] - code) == 0 : 
+            return True
+    return False
+
+
+def updateTable(code):
+    global tabuTable
+    if tabuTable.shape[0]:
+        tebuTable = np.delete(tabuTable, 0, axis=0)
+    tabuTable = np.row_stack((tabuTable, code))
+
+
 if __name__ == '__main__':
-    dataFilePath = './data/R15.csv'
+    dataFilePath = './data/user_knowledge.csv'
     dataSet = loadCsv(dataFilePath)
     classes = dataSet[:, -1]
     dataSet = normalization(dataSet[:, 0:-1])
 
-    c = int(15)
+    c = int(4)
     m = int(2)
     U, V, J = fcm(dataSet, m, c)
     print('Accuracy: {0}%').format(evaluate(U, classes, dataSet) * 100)
     print('J: {0}').format(J)
+    _U, _V, _J = U, V, J
+    _code = code = np.array(range(c))
+    global tabuTable
+    global tabuLength
+    tabuTable = np.array([[]]).reshape(0,c)
+    tabuLength = 5
+    maxSearchNum = 6
+    MAX_ITERATION = 100
+    curTimes = 0
+
+    while(curTimes < MAX_ITERATION):
+        searchNum = 0
+        locationJ = float('inf')
+        locationCode= None
+        locationU = locationV =None
+        while(searchNum < maxSearchNum):
+            temCode, naighbourV = neighbourhood(code, V)
+            if not tabuJudge(temCode):
+                temU, temV, temJ = fcmIteration(U, naighbourV, dataSet, m, c)
+                if temJ < locationJ :
+                    locationCode = temCode.copy()
+                    locationU = temU
+                    locationV = temV
+                    locationJ = temJ
+                searchNum+=1
+        print locationJ
+        if locationJ < _J :
+            _U, _V, _J = locationU, locationV, locationJ
+            _code = locationCode.copy()
+        code = locationCode.copy()
+        U, V = locationU, locationV
+        updateTable(locationCode)
+        curTimes+=1 
+
+    print('Accuracy: {0}%').format(evaluate(_U, classes, dataSet) * 100)
+    print('J: {0}').format(_J)
+
+
