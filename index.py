@@ -9,6 +9,21 @@ import csv
 import random
 
 
+def saveUV(U, V, name):
+    f = open('./tem/' + name + '_U.csv', 'w')
+    for i in U:
+        k = ','.join([str(j) for j in i])
+        f.write(k + "\n")
+    f.close()
+    print 'save U success'
+    f = open('./tem/' + name + '_U.csv', 'w')
+    for i in U:
+        k = ','.join([str(j) for j in i])
+        f.write(k + "\n")
+    f.close()
+    print 'save V success'
+
+
 def loadCsv(filename):
     """ loas data set """
     lines = csv.reader(open(filename, "rb"))
@@ -141,7 +156,7 @@ def fcm(dataSet, m, c):
 
 def neighbourhoodV(V):
     shape = V.shape
-    _V = (np.random.rand(*shape) - 0.5) * neighbourhoodLength*2 + V.copy()
+    _V = (np.random.rand(*shape) - 0.5) * neighbourhoodLength * 2 + V.copy()
     return _V
 
 
@@ -160,7 +175,7 @@ def tabuJudge(obj):
         return False
     for i in range(min(listLength, tabuLength)):
         if np.sum(np.fabs(tabuList[i] -
-                          obj)) < c * attrNum * 0.5* neighbourhoodLength:
+                          obj)) < c * attrNum * 0.5 * neighbourhoodLength:
             return True
     return False
 
@@ -180,10 +195,12 @@ if __name__ == '__main__':
     c = int(4)
     m = int(2)
     # U, V, J = fcm(dataSet, m, c)
+    # accuracy = evaluate(U, classes, dataSet) * 100
     U = loadCsv('./tem/user_knowledge_U.csv')
     V = loadCsv('./tem/user_knowledge_V.csv')
     J = 36.1533220952
-    print('Accuracy: {0}%').format(evaluate(U, classes, dataSet) * 100)
+    accuracy = 53.8759689922
+    print('Accuracy: {0}%').format(accuracy)
     print('J: {0}').format(J)
     _U, _V, _J = U, V, J
     global tabuList
