@@ -139,34 +139,43 @@ def fcm(dataSet, m, c):
     return fcmIteration(U, V, dataSet, m, c)
 
 
-def neighbourhood(code, V):
+def neighbourhoodV(V, select1, select2):
+    V[[select1, select2], :] = V[[select2, select1], :]
+    return _V
+
+
+def neighbourhoodU(U, select1, select2):
+    U[:, [select1, select2]] = U[:, [select2, select1]]
+    return U
+
+
+def neighbourhood(code, neighbour):
     c = len(code)
     _code = code.copy()
-    _V = V.copy()
+    _neighbour = neighbour.copy()
     select1 = random.randrange(c)
     select2 = random.randrange(c)
     while select1 == select2:
         select2 = random.randrange(c)
     _code[[select1, select2]] = _code[[select2, select1]]
-    _V[[select1, select2], :] = _V[[select2, select1], :]
-    return _code, _V
+    return _code, neighbourhoodU(_neighbour, select1, select2)
 
 
 def tabuJudge(code):
-    tableLength, c = tabuTable.shape
+    tableLength, c = tabuList.shape
     if not tableLength:
         return False
     for i in range(min(tableLength, tabuLength)):
-        if np.count_nonzero(tabuTable[i] - code) == 0 : 
+        if np.count_nonzero(tabuList[i] - code) == 0:
             return True
     return False
 
 
 def updateTable(code):
-    global tabuTable
-    if tabuTable.shape[0]:
-        tebuTable = np.delete(tabuTable, 0, axis=0)
-    tabuTable = np.row_stack((tabuTable, code))
+    global tabuList
+    if tabuList.shape[0]:
+        tebuTable = np.delete(tabuList, 0, axis=0)
+    tabuList = np.row_stack((tabuList, code))
 
 
 if __name__ == '__main__':
@@ -182,39 +191,44 @@ if __name__ == '__main__':
     print('J: {0}').format(J)
     _U, _V, _J = U, V, J
     _code = code = np.array(range(c))
-    global tabuTable
+    global tabuList
     global tabuLength
-    tabuTable = np.array([[]]).reshape(0,c)
+    tabuList = np.array([[]]).reshape(0, c)
     tabuLength = 5
-    maxSearchNum = 6
+    maxSearchNum = 20
     MAX_ITERATION = 100
     curTimes = 0
-
-    while(curTimes < MAX_ITERATION):
+    xi = 1e-6
+    lastlocationJ = _J
+    while (curTimes < MAX_ITERATION):
         searchNum = 0
         locationJ = float('inf')
-        locationCode= None
-        locationU = locationV =None
-        while(searchNum < maxSearchNum):
-            temCode, naighbourV = neighbourhood(code, V)
+        locationCode = None
+        locationU = locationV = None
+        while (searchNum < maxSearchNum):
+            temCode, neighbourU = neighbourhood(code, U)
+            neighbourV = calcCentriod(neighbourU, dataSet, m)
             if not tabuJudge(temCode):
-                temU, temV, temJ = fcmIteration(U, naighbourV, dataSet, m, c)
-                if temJ < locationJ :
+                temU, temV, temJ = fcmIteration(U, neighbourV, dataSet, m, c)
+                if temJ < locationJ:
                     locationCode = temCode.copy()
                     locationU = temU
                     locationV = temV
                     locationJ = temJ
-                searchNum+=1
+                searchNum += 1
         print locationJ
-        if locationJ < _J :
+        if locationJ < _J:
             _U, _V, _J = locationU, locationV, locationJ
             _code = locationCode.copy()
         code = locationCode.copy()
         U, V = locationU, locationV
         updateTable(locationCode)
-        curTimes+=1 
+        if abs(lastlocationJ-locationJ) <= xi:
+            break
+        else:
+            lastlocationJ = locationJ
+        curTimes += 1
+            
 
     print('Accuracy: {0}%').format(evaluate(_U, classes, dataSet) * 100)
     print('J: {0}').format(_J)
-
-
