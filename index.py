@@ -2,7 +2,6 @@
 # -*- coding: utf-8 -*-
 import matplotlib.pyplot as plt
 import matplotlib.colors as pltColors
-import matplotlib.markers as pltMarkers
 import numpy as np
 import pandas as pd
 import csv
@@ -16,8 +15,8 @@ def saveUV(U, V, name):
         f.write(k + "\n")
     f.close()
     print 'save U success'
-    f = open('./tem/' + name + '_U.csv', 'w')
-    for i in U:
+    f = open('./tem/' + name + '_V.csv', 'w')
+    for i in V:
         k = ','.join([str(j) for j in i])
         f.write(k + "\n")
     f.close()
@@ -106,6 +105,8 @@ def evaluate(membership, std, dataSet):
     n = len(std)
     c = membership.shape[1]
     exp = [np.argmax(item) for item in membership]
+    np.set_printoptions(threshold='nan')
+    # print exp
     contact = np.column_stack((dataSet, std, exp))
     colors = pltColors.cnames.keys()
     hit = 0
@@ -156,7 +157,7 @@ def fcm(dataSet, m, c):
 
 def neighbourhoodV(V):
     shape = V.shape
-    _V = (np.random.rand(*shape) - 0.5) * neighbourhoodLength * 2 + V.copy()
+    _V = (np.random.rand(*shape) - 0.5) * neighbourhoodLength * 5 + V.copy()
     return _V
 
 
@@ -195,13 +196,15 @@ if __name__ == '__main__':
     c = int(4)
     m = int(2)
     # U, V, J = fcm(dataSet, m, c)
-    # accuracy = evaluate(U, classes, dataSet) * 100
     U = loadCsv('./tem/user_knowledge_U.csv')
     V = loadCsv('./tem/user_knowledge_V.csv')
     J = 36.1533220952
-    accuracy = 53.8759689922
+    accuracy = evaluate(U, classes, dataSet) * 100
+    # accuracy = 36.1533220952
     print('Accuracy: {0}%').format(accuracy)
     print('J: {0}').format(J)
+
+    """tabu search"""
     _U, _V, _J = U, V, J
     global tabuList
     global tabuLength
@@ -227,7 +230,7 @@ if __name__ == '__main__':
                     locationV = temV
                     locationJ = temJ
                 searchNum += 1
-        print locationJ
+        # print locationJ
         if locationJ < _J:
             _U, _V, _J = locationU, locationV, locationJ
         U, V = locationU, locationV
