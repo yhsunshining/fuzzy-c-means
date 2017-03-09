@@ -101,40 +101,61 @@ def distance(x, y):
     return np.linalg.norm(np_x - np_y)
 
 
-def evaluate(membership, std, dataSet):
-    n = len(std)
-    c = membership.shape[1]
-    exp = [np.argmax(item) for item in membership]
-    np.set_printoptions(threshold='nan')
-    # print exp
+def drawImage(dataSet, std, exp, c):
+    """ draw image in 2-d dataset """
     contact = np.column_stack((dataSet, std, exp))
     colors = pltColors.cnames.keys()
-    hit = 0
     for i in range(c):
         mask = contact[:, -1] == i
         select = contact[mask]
         x, y = select[:, 0], select[:, 1]
-        """ draw image in 2-d dataset """
-        # plt.scatter(
-        #     x,
-        #     y,
-        #     c=colors[i],
-        #     label=str(i),
-        #     s=100,
-        #     marker="${}$".format(i),
-        #     alpha=1,
-        #     edgecolors='none')
-        """ end draw """
-        hit += pd.Series(select[:, -2]).value_counts().tolist()[0]
-    """ draw image in 2-d dataset """
-    # plt.title('Scatter')
-    # plt.xlabel('x')
-    # plt.ylabel('y')
-    # # plt.legend()
-    # plt.grid(True)
-    # plt.show()
-    """ end draw """
-    return float(hit) / n
+        plt.scatter(
+            x,
+            y,
+            c=colors[i],
+            label=str(i),
+            s=100,
+            marker="${}$".format(i),
+            alpha=1,
+            edgecolors='none')
+    plt.title('Scatter')
+    plt.xlabel('x')
+    plt.ylabel('y')
+    # plt.legend()
+    plt.grid(True)
+    plt.show()
+
+
+def evaluate(membership, std, dataSet):
+    n = len(std)
+    classNum = membership.shape[1]
+    exp = [np.argmax(item) for item in membership]
+    # np.set_printoptions(threshold='nan')
+    # print exp
+    # drawImage(dataSet, std, exp, classNum)
+    a = b = c = d = 0
+    for i in range(n):
+        for j in range(i + 1, n):
+            expFlag = exp[i] == exp[j]
+            stdFlag = std[i] == std[j]
+            if expFlag and stdFlag:
+                a += 1
+                continue
+            if (not expFlag) and (not stdFlag):
+                d += 1
+                continue
+            if expFlag and (not stdFlag):
+                b += 1
+                continue
+            if (not expFlag) and stdFlag:
+                c += 1
+                continue
+    a = float(a)
+    JC = a / (a + b + c)
+    FMI = (a**2 / ((a + b) * (a + c)))**(1.0 / 2)
+    RI = 2 * (a + d) / (n * (n - 1))
+    print JC, FMI, RI
+    return FMI
 
 
 def fcmIteration(U, V, dataSet, m, c):
@@ -203,7 +224,6 @@ if __name__ == '__main__':
     # accuracy = 36.1533220952
     print('Accuracy: {0}%').format(accuracy)
     print('J: {0}').format(J)
-
     """tabu search"""
     _U, _V, _J = U, V, J
     global tabuList
