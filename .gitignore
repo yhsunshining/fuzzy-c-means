@@ -1,6 +1,10 @@
 # project config
 .vscode/
 
+# project tem
+exp.csv 
+tem/
+
 # Byte-compiled / optimized / DLL files
 __pycache__/
 *.py[cod]
