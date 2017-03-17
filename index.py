@@ -66,6 +66,8 @@ def calcMembership(membership, centriod, m):
     for rowIndex in range(n):
         for colIndex in range(c):
             d_ij = distance(dataSet[rowIndex, :], centriod[colIndex, :])
+            if d_ij == 0:
+                print "#############################################"
             membership[rowIndex, colIndex] = 1 / np.sum([
                 np.power(d_ij / distance(dataSet[rowIndex, :], item),
                          2 / (m - 1)) for item in centriod
@@ -176,8 +178,11 @@ def fcmIteration(U, V, dataSet, m, c):
     delta = float('inf')
     while delta > xi:
         U = calcMembership(U, V, m)
+        # J = calcObjective(U, V, dataSet, m)
+        # print('JU:{0}').format(str(J))
         _V = calcCentriod(U, dataSet, m)
-        J = calcObjective(U, _V, dataSet, m)
+        # J = calcObjective(U, _V, dataSet, m)
+        # print('JV:{0}').format(str(J))
         # drawImage(dataSet,classes,getExpResult(U),c,figName = J )
         delta = np.sum(np.power(V - _V, 2))
         V = _V
@@ -191,38 +196,99 @@ def fcm(dataSet, m, c):
     return fcmIteration(U, V, dataSet, m, c)
 
 
-def neighbourhoodV(V, neighbourhoodTimes=5):
-    shape = V.shape
-    _V = (np.random.rand(*shape) - 0.5
-          ) * neighbourhoodUnit * neighbourhoodTimes + V.copy()
-    return _V
+class TabuSearch:
+    def __init__(self,
+                 tabuList,
+                 tabuLength=5,
+                 maxSearchNum=5,
+                 MAX_ITERATION=20,
+                 neighbourhoodUnit=0.01,
+                 neighbourhoodTimes=5):
+        self.tabuList = tabuList
+        self.tabuLength = tabuLength
+        self.maxSearchNum = maxSearchNum
+        self.MAX_ITERATION = MAX_ITERATION
+        self.neighbourhoodUnit = neighbourhoodUnit
+        self.neighbourhoodTimes = neighbourhoodTimes
 
+    def neighbourhoodV(self, V):
+        shape = V.shape
+        _V = (np.random.rand(*shape) - 0.5
+              ) * self.neighbourhoodUnit * self.neighbourhoodTimes + V.copy()
+        return _V
 
-def neighbourhood(neighbour):
-    return neighbourhoodV(neighbour)
+    def neighbourhood(self, neighbour):
+        return self.neighbourhoodV(neighbour)
 
-
-def tabuJudge(obj):
-    listLength, c, attrNum = tabuList.shape
-    if not listLength:
+    def tabuJudge(self, obj):
+        listLength, c, attrNum = self.tabuList.shape
+        if not listLength:
+            return False
+        for i in range(listLength):
+            absMat = np.fabs(self.tabuList[i] - obj)
+            if not absMat[absMat > 0.5 * self.neighbourhoodUnit].shape[0]:
+                return True
         return False
-    for i in range(listLength):
-        absMat = np.fabs(tabuList[i] - obj)
-        if not absMat[absMat > 0.5 * neighbourhoodUnit].shape[0]:
-            return True
-    return False
+
+    def addTabuObj(self, tabuObj):
+        self.tabuList = np.row_stack(
+            (self.tabuList, tabuObj.reshape(1, *tabuObj.shape)))
+
+    def updateList(self, tabuObj):
+        if self.tabuList.shape[0]:
+            self.tabuList = np.delete(self.tabuList, 0, axis=0)
+        self.addTabuObj(tabuObj)
+
+    def start(self, U, V, J, accuracy):
+        _U, _V, _J, _accuracy = U, V, J, accuracy
+        curTimes = 0
+        _tabuLength = 0
+        xi = 1e-6
+        lastlocationJ = _J
+        lastA = _accuracy
+        while (curTimes < self.MAX_ITERATION):
+            searchNum = 0
+            locationJ = float('inf')
+            locationA = 0
+            locationU = locationV = None
+            while (searchNum < self.maxSearchNum):
+                neighbourV = self.neighbourhood(V)
+                if not self.tabuJudge(neighbourV):
+                    # temU, temV, temJ = fcmIteration(U, neighbourV, dataSet, m, c)
+                    temU = calcMembership(U, neighbourV, m)
+                    temV = calcCentriod(temU, dataSet, m)
+                    temJ = calcObjective(temU, temV, dataSet, m)
+                    temA = evaluate(temU, classes, dataSet)
+                    if temJ < locationJ:
+                        # if temA > locationA:
+                        locationU = temU
+                        locationV = temV
+                        locationJ = temJ
+                        locationA = temA
+                    searchNum += 1
+            print locationJ
+            # print locationA
+            if locationJ < _J:
+                # if locationA > _accuracy:
+                _U, _V, _J, _accuracy = locationU, locationV, locationJ, locationA
+            U, V = locationU, locationV
+            if _tabuLength < self.tabuLength:
+                self.addTabuObj(locationV)
+                _tabuLength += 1
+            else:
+                self.updateList(locationV)
+            # if abs(lastlocationJ - locationJ) <= xi:
+            #     break
+            # else:
+            #     lastlocationJ = locationJ
+            curTimes += 1
+
+        return _U, _V, _J, _accuracy
 
 
-def addTabuObj(tabuObj):
-    global tabuList
-    tabuList = np.row_stack((tabuList, tabuObj.reshape(1, *tabuObj.shape)))
-
-
-def updateList(tabuObj):
-    global tabuList
-    if tabuList.shape[0]:
-        tabuList = np.delete(tabuList, 0, axis=0)
-    addTabuObj(tabuObj)
+def printResult(accuracy, J):
+    print('Accuracy: {0}%').format(accuracy * 100)
+    print('J: {0}').format(J)
 
 
 if __name__ == '__main__':
@@ -245,57 +311,9 @@ if __name__ == '__main__':
     V = loadCsv('./tem/R15_V.csv')
     J = 11.9517360284
     accuracy = evaluate(U, classes, dataSet)
-    print('Accuracy: {0}%').format(accuracy * 100)
-    print('J: {0}').format(J)
-    """tabu search"""
-    _U, _V, _J, _accuracy = U, V, J, accuracy
-    global tabuList
-    global neighbourhoodUnit
-    neighbourhoodUnit = 0.01
-    tabuList = np.array([]).reshape(0, *V.shape)
-    tabuLength = 5
-    maxSearchNum = 5
-    MAX_ITERATION = 20
-    curTimes = 0
-    xi = 1e-6
-    lastlocationJ = _J
-    lastA = _accuracy
-    while (curTimes < MAX_ITERATION):
-        searchNum = 0
-        locationJ = float('inf')
-        locationA = 0
-        locationU = locationV = None
-        while (searchNum < maxSearchNum):
-            neighbourV = neighbourhood(V)
-            if not tabuJudge(neighbourV):
-                # temU, temV, temJ = fcmIteration(U, neighbourV, dataSet, m, c)
-                temU = calcMembership(U, neighbourV, m)
-                temV = calcCentriod(temU, dataSet, m)
-                temJ = calcObjective(temU, temV, dataSet, m)
-                temA = evaluate(temU, classes, dataSet)
-                if temJ < locationJ:
-                    # if temA > locationA:
-                    locationU = temU
-                    locationV = temV
-                    locationJ = temJ
-                    locationA = temA
-                searchNum += 1
-        print locationJ
-        # print locationA
-        if locationJ < _J:
-            # if locationA > _accuracy:
-            _U, _V, _J, _accuracy = locationU, locationV, locationJ, locationA
-        U, V = locationU, locationV
-        if tabuLength:
-            addTabuObj(locationV)
-            tabuLength -= 1
-        else:
-            updateList(locationV)
-        # if abs(lastlocationJ - locationJ) <= xi:
-        #     break
-        # else:
-        #     lastlocationJ = locationJ
-        curTimes += 1
-
-    print('Accuracy: {0}%').format(evaluate(_U, classes, dataSet) * 100)
-    print('J: {0}').format(_J)
+    printResult(accuracy, J)
+    """ tabu search start """
+    ts = TabuSearch(np.array([]).reshape(0, *V.shape))
+    U, V, J, accuracy = ts.start(U, V, J, accuracy)
+    printResult(accuracy, J)
+    """ tabu search end """
