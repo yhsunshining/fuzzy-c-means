@@ -1,11 +1,14 @@
 """these are some tools about fcm"""
 # -*- coding: utf-8 -*-
-import matplotlib.pyplot as plt
-import matplotlib.colors as pltColors
-import numpy as np
-import pandas as pd
 import csv
 import random
+import shutil
+import os
+
+import matplotlib.colors as pltColors
+import matplotlib.pyplot as plt
+import numpy as np
+import pandas as pd
 
 
 def saveUV(U, V, name):
@@ -101,10 +104,12 @@ def distance(x, y):
     return np.linalg.norm(np_x - np_y)
 
 
-def drawImage(dataSet, std, exp, c):
+def drawImage(dataSet, std, exp, c, figName="figure"):
     """ draw image in 2-d dataset """
+    global figIndex
     contact = np.column_stack((dataSet, std, exp))
     colors = pltColors.cnames.keys()
+    fig = plt.figure()
     for i in range(c):
         mask = contact[:, -1] == i
         select = contact[mask]
@@ -118,21 +123,28 @@ def drawImage(dataSet, std, exp, c):
             marker="${}$".format(i),
             alpha=1,
             edgecolors='none')
-    plt.title('Scatter')
+    plt.title(str(figName))
     plt.xlabel('x')
     plt.ylabel('y')
     # plt.legend()
     plt.grid(True)
-    plt.show()
+    fig.savefig(
+        './images/R15/' + str(figIndex) + '.' + str(figName) + '.png',
+        dpi=fig.dpi)
+    figIndex += 1
+    #plt.show()
+
+
+def getExpResult(membership):
+    return [np.argmax(item) for item in membership]
 
 
 def evaluate(membership, std, dataSet):
     n = len(std)
     classNum = membership.shape[1]
-    exp = [np.argmax(item) for item in membership]
+    exp = getExpResult(membership)
     # np.set_printoptions(threshold='nan')
     # print exp
-    # drawImage(dataSet, std, exp, classNum)
     a = b = c = d = 0
     for i in range(n):
         for j in range(i + 1, n):
@@ -154,7 +166,8 @@ def evaluate(membership, std, dataSet):
     JC = a / (a + b + c)
     FMI = (a**2 / ((a + b) * (a + c)))**(1.0 / 2)
     RI = 2 * (a + d) / (n * (n - 1))
-    print JC, FMI, RI
+    # print JC, FMI, RI
+    # drawImage(dataSet, std, exp, classNum, str(FMI))
     return FMI
 
 
@@ -164,9 +177,11 @@ def fcmIteration(U, V, dataSet, m, c):
     while delta > xi:
         U = calcMembership(U, V, m)
         _V = calcCentriod(U, dataSet, m)
+        J = calcObjective(U, _V, dataSet, m)
+        # drawImage(dataSet,classes,getExpResult(U),c,figName = J )
         delta = np.sum(np.power(V - _V, 2))
         V = _V
-    return U, V, calcObjective(U, V, dataSet, m)
+    return U, V, J
 
 
 def fcm(dataSet, m, c):
@@ -176,15 +191,11 @@ def fcm(dataSet, m, c):
     return fcmIteration(U, V, dataSet, m, c)
 
 
-def neighbourhoodV(V):
+def neighbourhoodV(V, neighbourhoodTimes=5):
     shape = V.shape
-    _V = (np.random.rand(*shape) - 0.5) * neighbourhoodLength * 5 + V.copy()
+    _V = (np.random.rand(*shape) - 0.5
+          ) * neighbourhoodUnit * neighbourhoodTimes + V.copy()
     return _V
-
-
-# def neighbourhoodU(U, select1, select2):
-#     U[:, [select1, select2]] = U[:, [select2, select1]]
-#     return U
 
 
 def neighbourhood(neighbour):
@@ -195,70 +206,95 @@ def tabuJudge(obj):
     listLength, c, attrNum = tabuList.shape
     if not listLength:
         return False
-    for i in range(min(listLength, tabuLength)):
-        if np.sum(np.fabs(tabuList[i] -
-                          obj)) < c * attrNum * 0.5 * neighbourhoodLength:
+    for i in range(listLength):
+        absMat = np.fabs(tabuList[i] - obj)
+        if not absMat[absMat > 0.5 * neighbourhoodUnit].shape[0]:
             return True
     return False
 
 
-def updateTable(tabuObj):
+def addTabuObj(tabuObj):
     global tabuList
-    if tabuList.shape[0]:
-        tabuList = np.delete(tabuList, 0, axis=0)
     tabuList = np.row_stack((tabuList, tabuObj.reshape(1, *tabuObj.shape)))
 
 
+def updateList(tabuObj):
+    global tabuList
+    if tabuList.shape[0]:
+        tabuList = np.delete(tabuList, 0, axis=0)
+    addTabuObj(tabuObj)
+
+
 if __name__ == '__main__':
-    dataFilePath = './data/user_knowledge.csv'
+    """ clean up dir"""
+    shutil.rmtree('./images/R15')
+    os.mkdir('./images/R15')
+    """ clean end """
+    """ figIndex init """
+    global figIndex
+    figIndex = 1
+    """ figIndex end """
+    dataFilePath = './data/R15.csv'
     dataSet = loadCsv(dataFilePath)
     classes = dataSet[:, -1]
     dataSet = normalization(dataSet[:, 0:-1])
-    c = int(4)
+    c = int(15)
     m = int(2)
     # U, V, J = fcm(dataSet, m, c)
-    U = loadCsv('./tem/user_knowledge_U.csv')
-    V = loadCsv('./tem/user_knowledge_V.csv')
-    J = 36.1533220952
-    accuracy = evaluate(U, classes, dataSet) * 100
-    # accuracy = 36.1533220952
-    print('Accuracy: {0}%').format(accuracy)
+    U = loadCsv('./tem/R15_U.csv')
+    V = loadCsv('./tem/R15_V.csv')
+    J = 11.9517360284
+    accuracy = evaluate(U, classes, dataSet)
+    print('Accuracy: {0}%').format(accuracy * 100)
     print('J: {0}').format(J)
     """tabu search"""
-    _U, _V, _J = U, V, J
+    _U, _V, _J, _accuracy = U, V, J, accuracy
     global tabuList
-    global tabuLength
-    global neighbourhoodLength
-    neighbourhoodLength = 0.01
+    global neighbourhoodUnit
+    neighbourhoodUnit = 0.01
     tabuList = np.array([]).reshape(0, *V.shape)
     tabuLength = 5
-    maxSearchNum = 6
+    maxSearchNum = 5
     MAX_ITERATION = 20
     curTimes = 0
     xi = 1e-6
     lastlocationJ = _J
+    lastA = _accuracy
     while (curTimes < MAX_ITERATION):
         searchNum = 0
         locationJ = float('inf')
+        locationA = 0
         locationU = locationV = None
         while (searchNum < maxSearchNum):
             neighbourV = neighbourhood(V)
             if not tabuJudge(neighbourV):
-                temU, temV, temJ = fcmIteration(U, neighbourV, dataSet, m, c)
+                # temU, temV, temJ = fcmIteration(U, neighbourV, dataSet, m, c)
+                temU = calcMembership(U, neighbourV, m)
+                temV = calcCentriod(temU, dataSet, m)
+                temJ = calcObjective(temU, temV, dataSet, m)
+                temA = evaluate(temU, classes, dataSet)
                 if temJ < locationJ:
+                    # if temA > locationA:
                     locationU = temU
                     locationV = temV
                     locationJ = temJ
+                    locationA = temA
                 searchNum += 1
-        # print locationJ
+        print locationJ
+        # print locationA
         if locationJ < _J:
-            _U, _V, _J = locationU, locationV, locationJ
+            # if locationA > _accuracy:
+            _U, _V, _J, _accuracy = locationU, locationV, locationJ, locationA
         U, V = locationU, locationV
-        updateTable(locationV)
-        if abs(lastlocationJ - locationJ) <= xi:
-            break
+        if tabuLength:
+            addTabuObj(locationV)
+            tabuLength -= 1
         else:
-            lastlocationJ = locationJ
+            updateList(locationV)
+        # if abs(lastlocationJ - locationJ) <= xi:
+        #     break
+        # else:
+        #     lastlocationJ = locationJ
         curTimes += 1
 
     print('Accuracy: {0}%').format(evaluate(_U, classes, dataSet) * 100)
