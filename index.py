@@ -9,6 +9,7 @@ import matplotlib.colors as pltColors
 import matplotlib.pyplot as plt
 import numpy as np
 import pandas as pd
+from math import exp
 
 
 def saveUV(U, V, name):
@@ -181,9 +182,10 @@ def fcmIteration(U, V, dataSet, m, c):
         # J = calcObjective(U, V, dataSet, m)
         # print('JU:{0}').format(str(J))
         _V = calcCentriod(U, dataSet, m)
-        # J = calcObjective(U, _V, dataSet, m)
+        J = calcObjective(U, _V, dataSet, m)
         # print('JV:{0}').format(str(J))
         # drawImage(dataSet,classes,getExpResult(U),c,figName = J )
+        # print evaluate(U,classes,dataSet)
         delta = np.sum(np.power(V - _V, 2))
         V = _V
     return U, V, J
@@ -302,6 +304,7 @@ if __name__ == '__main__':
     """ figIndex end """
     dataFilePath = './data/R15.csv'
     dataSet = loadCsv(dataFilePath)
+    global classes
     classes = dataSet[:, -1]
     dataSet = normalization(dataSet[:, 0:-1])
     c = int(15)
@@ -313,7 +316,39 @@ if __name__ == '__main__':
     accuracy = evaluate(U, classes, dataSet)
     printResult(accuracy, J)
     """ tabu search start """
-    ts = TabuSearch(np.array([]).reshape(0, *V.shape))
-    U, V, J, accuracy = ts.start(U, V, J, accuracy)
-    printResult(accuracy, J)
+    # ts = TabuSearch(tabuList = np.array([]).reshape(0, *V.shape))
+    # U, V, J, accuracy = ts.start(U, V, J, accuracy)
+    # printResult(accuracy, J)
     """ tabu search end """
+    """ SA start """
+    T0 = 200
+    T = TMAX = 500
+    k = 0.99
+    MAX_ITERATION = 40
+    p = 1 - 1e-3
+    curIndex = 0
+    _U, _V, _J, _accuracy = locationU, locationV, locationJ, locationA = U, V, J, accuracy
+    vShape = V.shape
+    while (curIndex < MAX_ITERATION):
+        locationU = calcMembership(locationU, locationV, m)
+        locationV = calcCentriod(locationU, dataSet, m)
+        locationJ = calcObjective(locationU, locationV, dataSet, m)
+        locationA = evaluate(_U, classes, dataSet)
+        temV = (np.random.rand(*vShape) - 0.5) * 0.01 + locationV.copy()
+        temU = calcMembership(locationU, temV, m)
+        temJ = calcObjective(temU, temV, dataSet, m)
+        temA = evaluate(temU, classes, dataSet)
+        # _p = exp(float(locationJ - temJ)/(k*T))
+        # if(temJ <= locationJ) or _p>p:
+        _p = exp(float(temA - locationA) / (k * T))
+        if (temA >= locationA) or _p > p:
+            locationU, locationV, locationJ, locationA = temU, temV, temJ, temA
+        # if(locationJ<_J):
+        if (locationA > _accuracy):
+            _U, _V, _J, _accuracy = locationU, locationV, locationJ, locationA
+        T = k * T
+        if (T < T0):
+            break
+        curIndex += 1
+    printResult(_accuracy, _J)
+    """ SA end """
