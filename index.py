@@ -4,6 +4,7 @@ import csv
 import random
 import shutil
 import os
+import time
 
 import matplotlib.colors as pltColors
 import matplotlib.pyplot as plt
@@ -107,7 +108,7 @@ def distance(x, y):
     return np.linalg.norm(np_x - np_y)
 
 
-def drawImage(dataSet, std, exp, c, figName="figure"):
+def drawImage(dataSet, std, exp, c, figName="figure",V = None):
     """ draw image in 2-d dataset """
     global figIndex
     contact = np.column_stack((dataSet, std, exp))
@@ -126,6 +127,16 @@ def drawImage(dataSet, std, exp, c, figName="figure"):
             marker="${}$".format(i),
             alpha=1,
             edgecolors='none')
+        if V <> None:
+            plt.scatter(
+            V[i][0],
+            V[i][1],
+            c=colors[i],
+            label=str(i),
+            s=100,
+            marker="o",
+            alpha=1,
+            edgecolors='white')
     plt.title(str(figName))
     plt.xlabel('x')
     plt.ylabel('y')
@@ -146,8 +157,6 @@ def evaluate(membership, std, dataSet):
     n = len(std)
     classNum = membership.shape[1]
     exp = getExpResult(membership)
-    # np.set_printoptions(threshold='nan')
-    # print exp
     a = b = c = d = 0
     for i in range(n):
         for j in range(i + 1, n):
@@ -175,7 +184,7 @@ def evaluate(membership, std, dataSet):
 
 
 def fcmIteration(U, V, dataSet, m, c):
-    xi = 1e-6
+    xi = 1e-8
     delta = float('inf')
     while delta > xi:
         U = calcMembership(U, V, m)
@@ -183,9 +192,9 @@ def fcmIteration(U, V, dataSet, m, c):
         # print('JU:{0}').format(str(J))
         _V = calcCentriod(U, dataSet, m)
         J = calcObjective(U, _V, dataSet, m)
-        # print('JV:{0}').format(str(J))
-        # drawImage(dataSet,classes,getExpResult(U),c,figName = J )
-        # print evaluate(U,classes,dataSet)
+        # print('{0}').format(str(J))
+        drawImage(dataSet,classes,getExpResult(U),c,J,_V )
+        # print str(J)+" "+str(evaluate(U,classes,dataSet))
         delta = np.sum(np.power(V - _V, 2))
         V = _V
     return U, V, J
@@ -256,22 +265,22 @@ class TabuSearch:
             while (searchNum < self.maxSearchNum):
                 neighbourV = self.neighbourhood(V)
                 if not self.tabuJudge(neighbourV):
-                    # temU, temV, temJ = fcmIteration(U, neighbourV, dataSet, m, c)
-                    temU = calcMembership(U, neighbourV, m)
-                    temV = calcCentriod(temU, dataSet, m)
-                    temJ = calcObjective(temU, temV, dataSet, m)
+                    temU, temV, temJ = fcmIteration(U, neighbourV, dataSet, m, c)
+                    # temU = calcMembership(U, neighbourV, m)
+                    # temV = calcCentriod(temU, dataSet, m)
+                    # temJ = calcObjective(temU, temV, dataSet, m)
                     temA = evaluate(temU, classes, dataSet)
                     if temJ < locationJ:
-                        # if temA > locationA:
+                    # if temA > locationA:
                         locationU = temU
                         locationV = temV
                         locationJ = temJ
                         locationA = temA
                     searchNum += 1
-            print locationJ
+            # print locationJ
             # print locationA
             if locationJ < _J:
-                # if locationA > _accuracy:
+            # if locationA > _accuracy:
                 _U, _V, _J, _accuracy = locationU, locationV, locationJ, locationA
             U, V = locationU, locationV
             if _tabuLength < self.tabuLength:
@@ -287,45 +296,12 @@ class TabuSearch:
 
         return _U, _V, _J, _accuracy
 
-
-def printResult(accuracy, J):
-    print('Accuracy: {0}%').format(accuracy * 100)
-    print('J: {0}').format(J)
-
-
-if __name__ == '__main__':
-    """ clean up dir"""
-    shutil.rmtree('./images/R15')
-    os.mkdir('./images/R15')
-    """ clean end """
-    """ figIndex init """
-    global figIndex
-    figIndex = 1
-    """ figIndex end """
-    dataFilePath = './data/R15.csv'
-    dataSet = loadCsv(dataFilePath)
-    global classes
-    classes = dataSet[:, -1]
-    dataSet = normalization(dataSet[:, 0:-1])
-    c = int(15)
-    m = int(2)
-    # U, V, J = fcm(dataSet, m, c)
-    U = loadCsv('./tem/R15_U.csv')
-    V = loadCsv('./tem/R15_V.csv')
-    J = 11.9517360284
-    accuracy = evaluate(U, classes, dataSet)
-    printResult(accuracy, J)
-    """ tabu search start """
-    # ts = TabuSearch(tabuList = np.array([]).reshape(0, *V.shape))
-    # U, V, J, accuracy = ts.start(U, V, J, accuracy)
-    # printResult(accuracy, J)
-    """ tabu search end """
-    """ SA start """
+def SA(U, V, J, accuracy):
     T0 = 200
     T = TMAX = 500
     k = 0.99
-    MAX_ITERATION = 40
-    p = 1 - 1e-3
+    MAX_ITERATION = 120
+    p = 1 - 1e-4
     curIndex = 0
     _U, _V, _J, _accuracy = locationU, locationV, locationJ, locationA = U, V, J, accuracy
     vShape = V.shape
@@ -345,10 +321,60 @@ if __name__ == '__main__':
             locationU, locationV, locationJ, locationA = temU, temV, temJ, temA
         # if(locationJ<_J):
         if (locationA > _accuracy):
+            print locationA
             _U, _V, _J, _accuracy = locationU, locationV, locationJ, locationA
         T = k * T
-        if (T < T0):
-            break
+        # print T
+        # if (T < T0):
+        #     break
         curIndex += 1
-    printResult(_accuracy, _J)
+    return _U, _V, _J, _accuracy
+
+
+def printResult(accuracy, J):
+    print('Accuracy: {0}%').format(accuracy * 100)
+    print('J: {0}').format(J)
+
+
+if __name__ == '__main__':
+    """ clean up dir"""
+    # shutil.rmtree('./images/R15')
+    # os.mkdir('./images/R15')
+    """ clean end """
+    """ figIndex init """
+    global figIndex
+    figIndex = 1
+    """ figIndex end """
+    dataFilePath = './data/R15.csv'
+    dataSet = loadCsv(dataFilePath)
+    global classes
+    classes = dataSet[:, -1]
+    dataSet = normalization(dataSet[:, 0:-1])
+    c = int(15)
+    m = int(2)
+    minJ = float('inf')
+    # start = time.clock()
+    # for i in range(0,40):
+        # U, V, J = fcm(dataSet, m, c)
+        # if J<minJ:
+            # minJ =  J
+    # end = time.clock()
+    # print end - start
+    U = loadCsv('./tem/R15_U.csv')
+    V = loadCsv('./tem/R15_V.csv')
+    J = 11.9517360284
+    accuracy = evaluate(U, classes, dataSet)
+    printResult(accuracy, J)
+    """ tabu search start """
+    start = time.clock()
+    ts = TabuSearch(tabuList=np.array([]).reshape(0, *V.shape),MAX_ITERATION=40)
+    U, V, J, accuracy = ts.start(U, V, J, accuracy)
+    print time.clock() - start
+    printResult(accuracy, J)
+    exp= getExpResult(U)
+    drawImage(dataSet,classes,exp,c,"after",V)
+    """ tabu search end """
+    """ SA start """
+    # U, V, J, accuracy = ts.start(U, V, J, accuracy)
+    # printResult(accuracy, J)
     """ SA end """
