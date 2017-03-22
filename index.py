@@ -1,16 +1,18 @@
 """these are some tools about fcm"""
 # -*- coding: utf-8 -*-
 import csv
+import os
 import random
 import shutil
-import os
 import time
+from math import exp
 
+import matplotlib
+matplotlib.use('Agg')
 import matplotlib.colors as pltColors
 import matplotlib.pyplot as plt
 import numpy as np
 import pandas as pd
-from math import exp
 
 
 def saveUV(U, V, name):
