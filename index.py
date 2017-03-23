@@ -191,12 +191,12 @@ def fcmIteration(U, V, dataSet, m, c):
     while delta > xi:
         U = calcMembership(U, V, m)
         # J = calcObjective(U, V, dataSet, m)
-        # print('JU:{0}').format(str(J))
+        # print('JU:{0}').format(J)
         _V = calcCentriod(U, dataSet, m)
         J = calcObjective(U, _V, dataSet, m)
-        # print('{0}').format(str(J))
-        drawImage(dataSet,classes,getExpResult(U),c,J,_V )
-        # print str(J)+" "+str(evaluate(U,classes,dataSet))
+        # print('{0}').format(J)
+        # drawImage(dataSet,classes,getExpResult(U),c,J,_V )
+        # print('{0},{1}').format(J,evaluate(U,classes,dataSet))
         delta = np.sum(np.power(V - _V, 2))
         V = _V
     return U, V, J
@@ -334,14 +334,16 @@ def SA(U, V, J, accuracy):
 
 
 def printResult(accuracy, J):
-    print('Accuracy: {0}%').format(accuracy * 100)
-    print('J: {0}').format(J)
+    # print('Accuracy: {0}%').format(accuracy * 100)
+    # print('J: {0}').format(J)
+    print('{0},{1}').format(J,accuracy)
 
 
 if __name__ == '__main__':
     """ clean up dir"""
     # shutil.rmtree('./images/R15')
     # os.mkdir('./images/R15')
+    timeString = time.strftime('%Y_%m_%d-%H%M%S')
     """ clean end """
     """ figIndex init """
     global figIndex
@@ -374,7 +376,7 @@ if __name__ == '__main__':
     print time.clock() - start
     printResult(accuracy, J)
     exp= getExpResult(U)
-    drawImage(dataSet,classes,exp,c,"after",V)
+    drawImage(dataSet,classes,exp,c,timeString,V)
     """ tabu search end """
     """ SA start """
     # U, V, J, accuracy = ts.start(U, V, J, accuracy)
