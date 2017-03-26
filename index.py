@@ -110,7 +110,7 @@ def distance(x, y):
     return np.linalg.norm(np_x - np_y)
 
 
-def drawImage(dataSet, std, exp, c, figName="figure",V = None):
+def drawImage(dataSet, std, exp, c, figName="figure", V=None):
     """ draw image in 2-d dataset """
     global figIndex
     contact = np.column_stack((dataSet, std, exp))
@@ -131,14 +131,14 @@ def drawImage(dataSet, std, exp, c, figName="figure",V = None):
             edgecolors='none')
         if V <> None:
             plt.scatter(
-            V[i][0],
-            V[i][1],
-            c=colors[i],
-            label=str(i),
-            s=100,
-            marker="o",
-            alpha=1,
-            edgecolors='white')
+                V[i][0],
+                V[i][1],
+                c=colors[i],
+                label=str(i),
+                s=100,
+                marker="o",
+                alpha=1,
+                edgecolors='white')
     plt.title(str(figName))
     plt.xlabel('x')
     plt.ylabel('y')
@@ -190,13 +190,13 @@ def fcmIteration(U, V, dataSet, m, c):
     delta = float('inf')
     while delta > xi:
         U = calcMembership(U, V, m)
-        # J = calcObjective(U, V, dataSet, m)
-        # print('JU:{0}').format(J)
+        J = calcObjective(U, V, dataSet, m)
+        #drawImage(dataSet,classes,getExpResult(U),c,J,V )
+        #print('{0},{1}').format(J, evaluate(U, classes, dataSet))
         _V = calcCentriod(U, dataSet, m)
         J = calcObjective(U, _V, dataSet, m)
-        # print('{0}').format(J)
-        # drawImage(dataSet,classes,getExpResult(U),c,J,_V )
-        # print('{0},{1}').format(J,evaluate(U,classes,dataSet))
+        #drawImage(dataSet,classes,getExpResult(U),c,J,_V )
+        # print('{0},{1}').format(J, evaluate(U, classes, dataSet))
         delta = np.sum(np.power(V - _V, 2))
         V = _V
     return U, V, J
@@ -267,10 +267,8 @@ class TabuSearch:
             while (searchNum < self.maxSearchNum):
                 neighbourV = self.neighbourhood(V)
                 if not self.tabuJudge(neighbourV):
-                    temU, temV, temJ = fcmIteration(U, neighbourV, dataSet, m, c)
-                    # temU = calcMembership(U, neighbourV, m)
-                    # temV = calcCentriod(temU, dataSet, m)
-                    # temJ = calcObjective(temU, temV, dataSet, m)
+                    temU, temV, temJ = fcmIteration(U, neighbourV, dataSet, m,
+                                                    c)
                     temA = evaluate(temU, classes, dataSet)
                     if temJ < locationJ:
                     # if temA > locationA:
@@ -279,11 +277,13 @@ class TabuSearch:
                         locationJ = temJ
                         locationA = temA
                     searchNum += 1
-            # print locationJ
-            # print locationA
+            print('{0},{1}').format(locationJ,locationA)
             if locationJ < _J:
             # if locationA > _accuracy:
                 _U, _V, _J, _accuracy = locationU, locationV, locationJ, locationA
+                self.neighbourhoodTimes = max(5,self.neighbourhoodTimes-5)
+            else:
+                self.neighbourhoodTimes = min(50,self.neighbourhoodTimes+5)
             U, V = locationU, locationV
             if _tabuLength < self.tabuLength:
                 self.addTabuObj(locationV)
@@ -297,6 +297,7 @@ class TabuSearch:
             curTimes += 1
 
         return _U, _V, _J, _accuracy
+
 
 def SA(U, V, J, accuracy):
     T0 = 200
@@ -316,27 +317,27 @@ def SA(U, V, J, accuracy):
         temU = calcMembership(locationU, temV, m)
         temJ = calcObjective(temU, temV, dataSet, m)
         temA = evaluate(temU, classes, dataSet)
-        # _p = exp(float(locationJ - temJ)/(k*T))
-        # if(temJ <= locationJ) or _p>p:
-        _p = exp(float(temA - locationA) / (k * T))
-        if (temA >= locationA) or _p > p:
+        _p = exp(float(locationJ - temJ)/(k*T))
+        if(temJ <= locationJ) or _p>p:
+        # _p = exp(float(temA - locationA) / (k * T))
+        # if (temA >= locationA) or _p > p:
             locationU, locationV, locationJ, locationA = temU, temV, temJ, temA
-        # if(locationJ<_J):
-        if (locationA > _accuracy):
-            print locationA
+        if(locationJ<_J):
+        # if (locationA > _accuracy):
             _U, _V, _J, _accuracy = locationU, locationV, locationJ, locationA
         T = k * T
         # print T
         # if (T < T0):
         #     break
         curIndex += 1
+        print("{0},{1}").format(locationJ,locationA)
     return _U, _V, _J, _accuracy
 
 
 def printResult(accuracy, J):
     # print('Accuracy: {0}%').format(accuracy * 100)
     # print('J: {0}').format(J)
-    print('{0},{1}').format(J,accuracy)
+    print('{0},{1}').format(J, accuracy)
 
 
 if __name__ == '__main__':
@@ -356,22 +357,23 @@ if __name__ == '__main__':
     dataSet = normalization(dataSet[:, 0:-1])
     c = int(15)
     m = int(2)
-    minJ = float('inf')
-    # start = time.clock()
-    # for i in range(0,40):
-        # U, V, J = fcm(dataSet, m, c)
-        # if J<minJ:
-            # minJ =  J
-    # end = time.clock()
-    # print end - start
-    U = loadCsv('./tem/R15_U.csv')
-    V = loadCsv('./tem/R15_V.csv')
-    J = 11.9517360284
-    accuracy = evaluate(U, classes, dataSet)
-    printResult(accuracy, J)
+    """ calc the time of run more times of iteration """
+    start = time.clock()
+    for i in range(0,20):
+        U, V, J = fcm(dataSet, m, c)
+        accuracy = evaluate(U, classes, dataSet)
+        printResult(accuracy, J)
+    end = time.clock()
+    print end - start
+    # U = loadCsv('./tem/R15_U.csv')
+    # V = loadCsv('./tem/R15_V.csv')
+    # # J = 11.9517360284
+    # J = calcObjective(U,V,dataSet,m)
+    # accuracy = evaluate(U, classes, dataSet)
+    # printResult(accuracy, J)
     """ tabu search start """
     start = time.clock()
-    ts = TabuSearch(tabuList=np.array([]).reshape(0, *V.shape),MAX_ITERATION=40)
+    ts = TabuSearch(tabuList=np.array([]).reshape(0, *V.shape),MAX_ITERATION=20)
     U, V, J, accuracy = ts.start(U, V, J, accuracy)
     print time.clock() - start
     printResult(accuracy, J)
@@ -379,6 +381,6 @@ if __name__ == '__main__':
     drawImage(dataSet,classes,exp,c,timeString,V)
     """ tabu search end """
     """ SA start """
-    # U, V, J, accuracy = ts.start(U, V, J, accuracy)
+    # U, V, J, accuracy = SA(U, V, J, accuracy)
     # printResult(accuracy, J)
     """ SA end """
