@@ -68,6 +68,8 @@ def calcMembership(centriod, dataSet, m):
     n = dataSet.shape[0]
     c = centriod.shape[0]
     dist = distanceMat(centriod, dataSet)
+    if dist(dist == 0).shape[0]:
+        print '-------------- dist == 0 ------------------'
     distPower = np.power(dist, -2.0 / (m - 1))
     return distPower / np.dot(
         np.sum(distPower, axis=1).reshape((n, 1)), np.ones((1, c)))
@@ -241,6 +243,7 @@ class TabuSearch:
         for i in range(listLength):
             absMat = np.fabs(self.tabuList[i] - obj)
             if not absMat[absMat > 0.5 * self.neighbourhoodUnit].shape[0]:
+                print '-------------- tabu hint ------------------'
                 return True
         return False
 
