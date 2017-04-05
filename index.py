@@ -68,7 +68,7 @@ def calcMembership(centriod, dataSet, m):
     n = dataSet.shape[0]
     c = centriod.shape[0]
     dist = distanceMat(centriod, dataSet)
-    if dist(dist == 0).shape[0]:
+    if dist[dist == 0].shape[0]:
         print '-------------- dist == 0 ------------------'
     distPower = np.power(dist, -2.0 / (m - 1))
     return distPower / np.dot(
