@@ -56,7 +56,7 @@ def convert3D(origin, shape, colNum=3):
 def rangeMat(data, dimension):
     res = np.zeros((2, dimension))
     res[0] = np.max(data, axis=0)
-    res[1] = np.min(data, axis=1)
+    res[1] = np.min(data, axis=0)
     return res
 
 
