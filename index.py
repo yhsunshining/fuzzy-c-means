@@ -40,13 +40,10 @@ def loadCsv(filename):
 
 
 def normalization(dataSet):
-    colNum = np.shape(dataSet)[1]
-    for index in range(colNum):
-        col = dataSet[:, index]
-        colMax = np.max(col)
-        colMin = np.min(col)
-        dataSet[:, index] = (col - colMin) / (colMax - colMin)
-    return dataSet
+    colMax = np.max(dataSet, axis=0)
+    colMin = np.min(dataSet, axis=0)
+    colRange = colMax - colMin
+    return (dataSet - colMin) / colRange
 
 
 def initMembership(n, c):
