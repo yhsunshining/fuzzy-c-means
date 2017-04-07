@@ -73,16 +73,15 @@ def transfer(originU, originV, targetU, targetV, targetRange):
     img = cv2.imread('./images/lena.jpg', 0)
     img = cv2.equalizeHist(img)
     out = convert2D(img, img.shape, 1) * np.ones(3)
-    out = normalization(out)
+    out = normalization(out) * 0.5 + 0.5
     for i in range(c):
         mask = originExp == originKeys[i]
-        out[mask] = (out[mask] * 0.5 + 0.5) * fV[targetKeys[i]]
+        out[mask] = out[mask] * targetV[targetKeys[i]]
 
     out = np.array(out, dtype=np.uint8)
     out[:, [0, -1]] = out[:, [-1, 0]]
     out = convert3D(out, img.shape, 3)
     plt.imsave('./' + time.strftime('%Y_%m_%d-%H%M%S') + '.png', out)
-    pass
 
 
 if __name__ == '__main__':
@@ -96,17 +95,17 @@ if __name__ == '__main__':
     inData = normalization(inData)
     c = int(6)
     m = int(2)
-    fU, fV, fJ = fcm(filterData, m, c)
+    fU, targetV, fJ = fcm(filterData, m, c)
     lU, lV, lJ = fcm(inData, m, c)
-    transfer(lU, lV, fU, fV, filterRange)
+    transfer(lU, lV, fU, targetV, filterRange)
     print time.clock() - start
 
     start = time.clock()
-    filterTs = TS(tabuList=np.array([]).reshape(0, *fV.shape),
+    filterTs = TS(tabuList=np.array([]).reshape(0, *targetV.shape),
                   MAX_ITERATION=20)
-    fU, fV, fJ = filterTs.start(fU, fV, fJ, filterData)
+    fU, targetV, fJ = filterTs.start(fU, targetV, fJ, filterData)
     filterTs = TS(tabuList=np.array([]).reshape(0, *lV.shape),
                   MAX_ITERATION=20)
     lU, lV, lJ = filterTs.start(lU, lV, lJ, inData)
-    transfer(lU, lV, fU, fV, filterRange)
+    transfer(lU, lV, fU, targetV, filterRange)
     print time.clock() - start
