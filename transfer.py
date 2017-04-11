@@ -60,52 +60,128 @@ def rangeMat(data, dimension):
     return res
 
 
-def transfer(originU, originV, targetU, targetV, targetRange):
-    targetV = targetV * (targetRange[0] - targetRange[1]) + targetRange[1]
-    targetExp = getExpResult(targetU)
-    series = pd.Series(targetExp)
-    targetKeys = series.value_counts().keys()
+def inv_normalization(data, rangeMat):
+    data = data * (rangeMat[0] - rangeMat[1]) + rangeMat[1]
+    return data
 
-    originExp = getExpResult(lU)
-    series = pd.Series(originExp)
-    originKeys = series.value_counts().keys()
 
-    img = cv2.imread('./images/lena.jpg', 0)
+def transferInRGB(originExp, originKeys, targetV, targetKeys):
+    img = cv2.imread(originImagePath, 0)
     img = cv2.equalizeHist(img)
     out = convert2D(img, img.shape, 1) * np.ones(3)
     out = normalization(out) * 0.5 + 0.5
     for i in range(c):
         mask = originExp == originKeys[i]
         out[mask] = out[mask] * targetV[targetKeys[i]]
-
-    out = np.array(out, dtype=np.uint8)
     out[:, [0, -1]] = out[:, [-1, 0]]
+    return out
+
+
+def transfer(originU, originV, originData, originRange, targetU, targetV,
+             targetData, targetRange):
+    c = originV.shape[0]
+    targetV = inv_normalization(targetV, targetRange)
+    targetData = inv_normalization(targetData, targetRange)
+    originV = inv_normalization(originV, originRange)
+    originData = inv_normalization(originData, originRange)
+
+    targetExp = getExpResult(targetU)
+    series = pd.Series(targetExp)
+    targetKeys = series.value_counts().keys()
+
+    originExp = getExpResult(originU)
+    series = pd.Series(originExp)
+    originKeys = series.value_counts().keys()
+
+    img = cv2.imread(originImagePath)
+    # out = convert3D(img,img.shape,1)* np.ones(3) 
+    img = cv2.cvtColor(img, cv2.COLOR_BGR2LAB)
+    out = np.float_(convert2D(img, img.shape, 3))
+    for i in range(c):
+        originMask = originExp == originKeys[i]
+        targetMask = targetExp == targetKeys[i]
+        originSlice = out[originMask]
+        targetSlice = targetData[targetMask]
+        originStd = np.std(originSlice, axis=0)
+        targetStd = np.std(targetSlice, axis=0)
+        originMeans = originV[originKeys[i]]
+        targetMeans = targetV[targetKeys[i]]
+        out[originMask] = (originSlice - originMeans
+                           ) * targetStd / originStd + targetMeans
+
+    # use Threshold 0-255
+    out[out > 255] = 255
+    out[out < 0] = 0
+
+    # normalization
+    out = normalization(out)
+    out = inv_normalization(out, targetRange)
+
+    out = np.uint8(out)
     out = convert3D(out, img.shape, 3)
+    out = cv2.cvtColor(out, cv2.COLOR_LAB2RGB)
     plt.imsave('./' + time.strftime('%Y_%m_%d-%H%M%S') + '.png', out)
 
 
+def showClusing(U, V, rangeMat, data, shape):
+    V = inv_normalization(V, rangeMat)
+    data = inv_normalization(data, rangeMat)
+    exp = getExpResult(U)
+    for i in range(V.shape[0]):
+        mask = exp == i
+        dataSlice = data[mask]
+        data[mask] = np.zeros(dataSlice.shape) + V[i]
+    data = np.uint8(data)
+    data = convert3D(data, shape, 3)
+    data = cv2.cvtColor(data, cv2.COLOR_LAB2RGB)
+    plt.imsave('./' + time.strftime('%Y_%m_%d-%H%M%S') + '.png', data)
+
+
+def loadImageData(url, meanshift=False):
+    img = cv2.imread(url)
+    img = cv2.cvtColor(img, cv2.COLOR_BGR2LAB)
+    if meanshift:
+        img = cv2.pyrMeanShiftFiltering(img, 9, 25)
+    return np.float32(convert2D(img, img.shape, 3)), img.shape
+
+
 if __name__ == '__main__':
+    originImagePath = './images/filter/scream.jpg'
+    targetImagePath = './images/filter/picasso_1.jpg'
     start = time.clock()
-    filterPath = './data/picasso_1.csv'
-    inPath = './data/lena.csv'
-    filterData = loadCsv(filterPath)
-    inData = loadCsv(inPath)
+    # filterPath = './data/picasso_lab.csv'
+    # originDataPath = './data/lena_lab.csv'
+    # filterData = loadCsv(filterPath)
+    # originData = loadCsv(originDataPath)
+    filterData, filterShape = loadImageData(targetImagePath, False)
+    originData, originShape = loadImageData(originImagePath, True)
     filterRange = rangeMat(filterData, 3)
+    originRange = rangeMat(originData, 3)
     filterData = normalization(filterData)
-    inData = normalization(inData)
-    c = int(6)
+    originData = normalization(originData)
+    c = int(5)
     m = int(2)
-    fU, targetV, fJ = fcm(filterData, m, c)
-    lU, lV, lJ = fcm(inData, m, c)
-    transfer(lU, lV, fU, targetV, filterRange)
+    # targetU, targetV, targetJ = fcm(filterData, m, c)
+    # saveUV(targetU,targetV,'picasso_still_life_5')
+    targetU = loadCsv('./tem/picasso_still_life_5_U.csv')
+    targetV = loadCsv('./tem/picasso_still_life_5_V.csv')
+    targetJ = calcObjective(targetU, targetV, filterData, m)
+    originU, originV, originJ = fcm(originData, m, c)
+    # saveUV(originU,originV,'scream_5')
+    # originU = loadCsv('./tem/scream_5_U.csv')
+    # originV = loadCsv('./tem/scream_5_V.csv')
+    # originJ = calcObjective(originU,originV,originData,m)
+    transfer(originU, originV, originData, originRange, targetU, targetV,
+             filterData, filterRange)
+    # showClusing(originU ,originV,originRange,originData,originShape)
     print time.clock() - start
 
-    start = time.clock()
-    filterTs = TS(tabuList=np.array([]).reshape(0, *targetV.shape),
-                  MAX_ITERATION=20)
-    fU, targetV, fJ = filterTs.start(fU, targetV, fJ, filterData)
-    filterTs = TS(tabuList=np.array([]).reshape(0, *lV.shape),
-                  MAX_ITERATION=20)
-    lU, lV, lJ = filterTs.start(lU, lV, lJ, inData)
-    transfer(lU, lV, fU, targetV, filterRange)
-    print time.clock() - start
+    # start = time.clock()
+    # filterTs = TS(tabuList=np.array([]).reshape(0, *targetV.shape),
+    #               MAX_ITERATION=20)
+    # fU, targetV, fJ = filterTs.start(fU, targetV, fJ, filterData)
+    # filterTs = TS(tabuList=np.array([]).reshape(0, *originV.shape),
+    #               MAX_ITERATION=20)
+    # originU, originV, lJ = filterTs.start(originU, originV, lJ, originData)
+    # transfer(originU, originV, fU, targetV, filterRange)
+    # print time.clock() - start
