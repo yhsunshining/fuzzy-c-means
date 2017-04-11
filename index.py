@@ -40,6 +40,7 @@ def loadCsv(filename):
 
 
 def normalization(dataSet):
+    dataSet = np.float32(dataSet)
     colMax = np.max(dataSet, axis=0)
     colMin = np.min(dataSet, axis=0)
     colRange = colMax - colMin
@@ -48,17 +49,12 @@ def normalization(dataSet):
 
 def initMembership(n, c):
     membership = np.random.uniform(0.001, 1, [n, c])
-    for i in range(0, n):
-        membership[i] = membership[i] / sum(membership[i])
-    return membership
+    return membership / np.sum(membership,axis = 0)
 
 
 def initCentroid(dataSet, c):
     dimension = np.shape(dataSet)[1]
-    centriod = np.zeros((c, dimension))
-    for i in range(0, dimension):
-        centriod[:, i] = np.random.rand(c)
-    return centriod
+    return np.random.rand(dimension*c).reshape(c,dimension)
 
 
 def calcMembership(centriod, dataSet, m):
