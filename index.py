@@ -146,7 +146,7 @@ def drawImage(dataSet, std, exp, c, figName="figure", V=None):
 
 
 def getExpResult(membership):
-    return [np.argmax(item) for item in membership]
+    return np.array([np.argmax(item) for item in membership]
 
 
 def evaluate(membership, std, dataSet):
