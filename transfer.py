@@ -180,8 +180,8 @@ if __name__ == '__main__':
     # filterTs = TS(tabuList=np.array([]).reshape(0, *targetV.shape),
     #               MAX_ITERATION=20)
     # fU, targetV, fJ = filterTs.start(fU, targetV, fJ, filterData)
-    # filterTs = TS(tabuList=np.array([]).reshape(0, *originV.shape),
+    # originTs = TS(tabuList=np.array([]).reshape(0, *originV.shape),
     #               MAX_ITERATION=20)
-    # originU, originV, lJ = filterTs.start(originU, originV, lJ, originData)
+    # originU, originV, originJ = originTs.start(originU, originV, originJ, originData)
     # transfer(originU, originV, fU, targetV, filterRange)
     # print time.clock() - start
