@@ -60,10 +60,52 @@ def rangeMat(data, dimension):
     return res
 
 
+def cosMat(verctor,mat):
+    dot = np.sum(verctor * mat,axis=1)
+    norm = np.linalg.norm(mat,axis=1) * np.linalg.norm(verctor)
+    return np.float_(dot)/norm
+
+
 def inv_normalization(data, rangeMat):
     data = data * (rangeMat[0] - rangeMat[1]) + rangeMat[1]
     return data
 
+def matchByFrequency(originExp,targetExp):
+    series = pd.Series(targetExp)
+    targetKeys = series.value_counts().keys()
+    series = pd.Series(originExp)
+    originKeys = series.value_counts().keys()
+    originLength = len(originKeys)
+    targetLength = len(targetKeys)
+    matchMap = {}
+    for i in range(originLength):
+        matchMap[originKeys[i]] = targetKeys[i % originLength]
+    return matchMap
+
+def stdMat(data,V,exp):
+    c = V.shape[0]
+    mat = np.zeros(V.shape)
+    for i in range(c):
+        mask = exp == i
+        dataSlice = data[mask]
+        mat[i,:] = np.std(dataSlice, axis=0)
+    return mat
+
+def matchByCos(origin,target,seq = None):
+    originLen = len(origin)
+    targetLen = len(target)
+    targetDict = {}
+    matchMap = {}
+    for i in range(targetLen):
+        targetDict[i] = True
+    iteration = seq if seq else range(originLen)
+    for i in iteration:
+        keys = targetDict.keys()
+        mat = cosMat(origin[i],target[[int(item) for item in targetDict]])
+        maxIndex = np.argmax(mat)
+        matchMap[i] = int(keys[maxIndex])
+        del targetDict[keys[maxIndex]]
+    return matchMap
 
 def transferInRGB(originExp, originKeys, targetV, targetKeys):
     img = cv2.imread(originImagePath, 0)
@@ -86,32 +128,35 @@ def transfer(originU, originV, originData, originRange, targetU, targetV,
     originData = inv_normalization(originData, originRange)
 
     targetExp = getExpResult(targetU)
-    series = pd.Series(targetExp)
-    targetKeys = series.value_counts().keys()
-
     originExp = getExpResult(originU)
+    originStd = stdMat(originData,originV,originExp)
+    targetStd = stdMat(targetData,targetV,targetExp)
+
+    #use std cos to match
     series = pd.Series(originExp)
     originKeys = series.value_counts().keys()
+    matchMap = matchByCos(originStd,targetStd,originKeys.tolist())
+
+    # use frequency to match
+    # matchMap = matchByFrequency(originExp,targetExp)
 
     img = cv2.imread(originImagePath)
     # out = convert3D(img,img.shape,1)* np.ones(3) 
     img = cv2.cvtColor(img, cv2.COLOR_BGR2LAB)
     out = np.float_(convert2D(img, img.shape, 3))
     for i in range(c):
-        originMask = originExp == originKeys[i]
-        targetMask = targetExp == targetKeys[i]
+        originMask = originExp == i
+        targetMask = targetExp == matchMap[i]
         originSlice = out[originMask]
-        targetSlice = targetData[targetMask]
         originStd = np.std(originSlice, axis=0)
-        targetStd = np.std(targetSlice, axis=0)
-        originMeans = originV[originKeys[i]]
-        targetMeans = targetV[targetKeys[i]]
+        originMeans = originV[i]
+        targetMeans = targetV[matchMap[i]]
         out[originMask] = (originSlice - originMeans
-                           ) * targetStd / originStd + targetMeans
+                           ) * targetStd[matchMap[i]] / originStd + targetMeans
 
     # use Threshold 0-255
-    out[out > 255] = 255
-    out[out < 0] = 0
+    # out[out > 255] = 255
+    # out[out < 0] = 0
 
     # normalization
     out = normalization(out)
@@ -141,7 +186,7 @@ def loadImageData(url, meanshift=False):
     img = cv2.imread(url)
     img = cv2.cvtColor(img, cv2.COLOR_BGR2LAB)
     if meanshift:
-        img = cv2.pyrMeanShiftFiltering(img, 9, 25)
+        img = cv2.pyrMeanShiftFiltering(img, 9, 20)
     return np.float32(convert2D(img, img.shape, 3)), img.shape
 
 
