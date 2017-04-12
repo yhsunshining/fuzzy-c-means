@@ -80,13 +80,9 @@ def calcCentriod(membership, dataSet, m):
 
 
 def calcObjective(membership, centriod, dataSet, m):
-    n, c = membership.shape
-    res = 0
     membershipPower = np.power(membership, m)
-    for i in range(n):
-        for j in range(c):
-            res += membershipPower[i][j] * distance(dataSet[i], centriod[j])
-    return res
+    dist = distanceMat(centriod,dataSet)
+    return np.sum(membershipPower * dist)
 
 
 def distance(x, y):
@@ -185,16 +181,17 @@ def fcmIteration(U, V, dataSet, m, c):
     delta = float('inf')
     while delta > epsilon and MAX_ITERATION > 0:
         U = calcMembership(V, dataSet, m)
-        J = calcObjective(U, V, dataSet, m)
+        # J = calcObjective(U, V, dataSet, m)
         #drawImage(dataSet,classes,getExpResult(U),c,J,V )
         #print('{0},{1}').format(J, evaluate(U, classes, dataSet))
         _V = calcCentriod(U, dataSet, m)
-        J = calcObjective(U, _V, dataSet, m)
+        # J = calcObjective(U, _V, dataSet, m)
         #drawImage(dataSet,classes,getExpResult(U),c,J,_V )
         # print('{0},{1}').format(J, evaluate(U, classes, dataSet))
-        delta = np.sum(np.power(V - _V, 2))
+        delta = distance(V,_V)**2
         V = _V
         MAX_ITERATION -= 1
+    J = calcObjective(U, _V, dataSet, m)
     return U, V, J
 
 
