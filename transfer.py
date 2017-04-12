@@ -98,9 +98,13 @@ def matchByCos(origin,target,seq = None):
     matchMap = {}
     for i in range(targetLen):
         targetDict[i] = True
+    _targetDict = targetDict.copy()
     iteration = seq if seq else range(originLen)
     for i in iteration:
         keys = targetDict.keys()
+        if not len(keys):
+            targetDict = _targetDict.copy()
+            keys = targetDict.keys()
         mat = cosMat(origin[i],target[[int(item) for item in targetDict]])
         maxIndex = np.argmax(mat)
         matchMap[i] = int(keys[maxIndex])
