@@ -8,11 +8,13 @@ import time
 from math import exp
 
 import matplotlib
-matplotlib.use('Agg')
 import matplotlib.colors as pltColors
 import matplotlib.pyplot as plt
 import numpy as np
 import pandas as pd
+from mpl_toolkits.mplot3d import Axes3D
+
+matplotlib.use('Agg')
 
 
 def saveUV(U, V, name):
@@ -39,10 +41,10 @@ def loadCsv(filename):
     return np.array(dataset)
 
 
-def normalization(dataSet):
+def normalization(dataSet,axis=0):
     dataSet = np.float32(dataSet)
-    colMax = np.max(dataSet, axis=0)
-    colMin = np.min(dataSet, axis=0)
+    colMax = np.max(dataSet, axis=axis)
+    colMin = np.min(dataSet, axis=axis)
     colRange = colMax - colMin
     return (dataSet - colMin) / colRange
 
@@ -103,7 +105,7 @@ def distanceMat(centriod, dataSet):
 def drawImage(dataSet, std, exp, c, figName="figure", V=None):
     """ draw image in 2-d dataset """
     global figIndex
-    contact = np.column_stack((dataSet, std, exp))
+    contact = np.column_stack((dataSet, exp))
     colors = pltColors.cnames.keys()
     fig = plt.figure()
     for i in range(c):
@@ -138,7 +140,7 @@ def drawImage(dataSet, std, exp, c, figName="figure", V=None):
         './images/R15/' + str(figIndex) + '.' + str(figName) + '.png',
         dpi=fig.dpi)
     figIndex += 1
-    #plt.show()
+    # plt.show()
 
 
 def getExpResult(membership):
@@ -171,7 +173,7 @@ def evaluate(membership, std, dataSet):
     FMI = (a**2 / ((a + b) * (a + c)))**(1.0 / 2)
     RI = 2 * (a + d) / (n * (n - 1))
     # print JC, FMI, RI
-    # drawImage(dataSet, std, exp, classNum, str(FMI))
+    # drawImage(dataSet,  exp, classNum, str(FMI))
     return FMI
 
 
@@ -182,11 +184,11 @@ def fcmIteration(U, V, dataSet, m, c):
     while delta > epsilon and MAX_ITERATION > 0:
         U = calcMembership(V, dataSet, m)
         # J = calcObjective(U, V, dataSet, m)
-        #drawImage(dataSet,classes,getExpResult(U),c,J,V )
+        #drawImage(dataSet,getExpResult(U),c,J,V )
         #print('{0},{1}').format(J, evaluate(U, classes, dataSet))
         _V = calcCentriod(U, dataSet, m)
         # J = calcObjective(U, _V, dataSet, m)
-        #drawImage(dataSet,classes,getExpResult(U),c,J,_V )
+        #drawImage(dataSet,getExpResult(U),c,J,_V )
         # print('{0},{1}').format(J, evaluate(U, classes, dataSet))
         delta = distance(V,_V)**2
         V = _V
@@ -366,7 +368,7 @@ if __name__ == '__main__':
     accuracy = evaluate(U, classes, dataSet)
     printResult(accuracy, J)
     # exp= getExpResult(U)
-    # drawImage(dataSet,classes,exp,c,'init',V)
+    # drawImage(dataSet,exp,c,'init',V)
     """ tabu search start """
     start = time.clock()
     ts = TabuSearch(
@@ -375,7 +377,7 @@ if __name__ == '__main__':
     print time.clock() - start
     printResult(accuracy, J)
     exp = getExpResult(U)
-    drawImage(dataSet, classes, exp, c, timeString, V)
+    drawImage(dataSet, exp, c, timeString, V)
     """ tabu search end """
     """ SA start """
     # U, V, J, accuracy = SA(U, V, J, accuracy)
