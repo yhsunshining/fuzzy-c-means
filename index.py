@@ -8,13 +8,13 @@ import time
 from math import exp
 
 import matplotlib
+matplotlib.use('Agg')
 import matplotlib.colors as pltColors
 import matplotlib.pyplot as plt
 import numpy as np
 import pandas as pd
-from mpl_toolkits.mplot3d import Axes3D
 
-matplotlib.use('Agg')
+
 
 
 def saveUV(U, V, name):
