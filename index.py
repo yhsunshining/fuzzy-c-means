@@ -51,7 +51,7 @@ def normalization(dataSet,axis=0):
 
 def initMembership(n, c):
     membership = np.random.uniform(0.001, 1, [n, c])
-    return membership / np.sum(membership,axis = 0)
+    return membership / np.sum(membership,axis = 1).reshape(n,1)
 
 
 def initCentroid(dataSet, c):
@@ -102,7 +102,7 @@ def distanceMat(centriod, dataSet):
     return mat
 
 
-def drawImage(dataSet, std, exp, c, figName="figure", V=None):
+def drawImage(dataSet, exp, c, figName="figure", V=None):
     """ draw image in 2-d dataset """
     global figIndex
     contact = np.column_stack((dataSet, exp))
@@ -193,7 +193,7 @@ def fcmIteration(U, V, dataSet, m, c):
         delta = distance(V,_V)**2
         V = _V
         MAX_ITERATION -= 1
-    J = calcObjective(U, _V, dataSet, m)
+    J = calcObjective(U, V, dataSet, m)
     return U, V, J
 
 
@@ -248,7 +248,7 @@ class TabuSearch:
             self.tabuList = np.delete(self.tabuList, 0, axis=0)
         self.addTabuObj(tabuObj)
 
-    def start(self, U, V, J, accuracy):
+    def start(self, U, V, J, accuracy, dataSet, m, c):
         _U, _V, _J, _accuracy = U, V, J, accuracy
         curTimes = 0
         _tabuLength = 0
@@ -373,7 +373,7 @@ if __name__ == '__main__':
     start = time.clock()
     ts = TabuSearch(
         tabuList=np.array([]).reshape(0, *V.shape), MAX_ITERATION=20)
-    U, V, J, accuracy = ts.start(U, V, J, accuracy)
+    U, V, J, accuracy = ts.start(U, V, J, accuracy, dataSet, m, c)
     print time.clock() - start
     printResult(accuracy, J)
     exp = getExpResult(U)
