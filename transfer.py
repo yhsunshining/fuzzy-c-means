@@ -118,6 +118,15 @@ def matchByCos(origin, target, seq=None):
         del targetDict[keys[selectIndex]]
     return matchMap
 
+def matchByChannel(origin,target):
+    originIndex = np.argsort(origin[:,0])
+    targetIndex = np.argsort(target[:,0])
+    originLength = len(originIndex)
+    matchMap = {}
+    for i in range(originLength):
+        matchMap[originIndex[i]] = targetIndex[i % originLength]
+    return matchMap
+
 
 def transferInRGB(originExp, originKeys, targetV, targetKeys):
     img = cv2.imread(originImagePath, 0)
@@ -159,6 +168,7 @@ def transfer(originU, originV, originData, originRange, targetU, targetV,
             originStd, axis=None))),
         np.column_stack((normalization(targetV, axis=None), normalization(
             targetStd, axis=None))), originKeys.tolist())
+    # matchMap = matchByChannel(originV,targetV)
 
     # print targetV
     # use frequency to match
