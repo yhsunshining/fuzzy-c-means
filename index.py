@@ -204,6 +204,9 @@ def fcm(dataSet, m, c):
     return fcmIteration(U, V, dataSet, m, c)
 
 
+def sortByCol(ndarray):
+    return ndarray[np.argsort(ndarray[:,0])]
+
 class TabuSearch:
     def __init__(self,
                  tabuList,
@@ -233,15 +236,17 @@ class TabuSearch:
         if not listLength:
             return False
         for i in range(listLength):
-            absMat = np.fabs(self.tabuList[i] - obj)
-            if not absMat[absMat > 0.5 * self.neighbourhoodUnit].shape[0]:
+            sortObj = sortByCol(obj)
+            absMat = np.fabs(self.tabuList[i] - sortObj)
+            if not absMat[absMat > self.neighbourhoodUnit].shape[0]:
                 print '-------------- tabu hint ------------------'
                 return True
         return False
 
     def addTabuObj(self, tabuObj):
+        sortObj = sortByCol(tabuObj)
         self.tabuList = np.row_stack(
-            (self.tabuList, tabuObj.reshape(1, *tabuObj.shape)))
+            (self.tabuList, sortObj.reshape(1, *sortObj.shape)))
 
     def updateList(self, tabuObj):
         if self.tabuList.shape[0]:
