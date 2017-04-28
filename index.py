@@ -8,13 +8,11 @@ import time
 from math import exp
 
 import matplotlib
-matplotlib.use('Agg')
+# matplotlib.use('Agg')
 import matplotlib.colors as pltColors
 import matplotlib.pyplot as plt
 import numpy as np
 import pandas as pd
-
-
 
 
 def saveUV(U, V, name):
@@ -41,7 +39,7 @@ def loadCsv(filename):
     return np.array(dataset)
 
 
-def normalization(dataSet,axis=0):
+def normalization(dataSet, axis=0):
     dataSet = np.float32(dataSet)
     colMax = np.max(dataSet, axis=axis)
     colMin = np.min(dataSet, axis=axis)
@@ -51,12 +49,12 @@ def normalization(dataSet,axis=0):
 
 def initMembership(n, c):
     membership = np.random.uniform(0.001, 1, [n, c])
-    return membership / np.sum(membership,axis = 1).reshape(n,1)
+    return membership / np.sum(membership, axis=1).reshape(n, 1)
 
 
 def initCentroid(dataSet, c):
     dimension = np.shape(dataSet)[1]
-    return np.random.rand(dimension*c).reshape(c,dimension)
+    return np.random.rand(dimension * c).reshape(c, dimension)
 
 
 def calcMembership(centriod, dataSet, m):
@@ -81,9 +79,57 @@ def calcCentriod(membership, dataSet, m):
     return np.dot(membershipPower.T, dataSet) / denominator
 
 
+def calcCentroidHessian(centriod, dataSet, m):
+    n = dataSet.shape[0]
+    c, dimension = centriod.shape
+    U = calcMembership(centriod, dataSet, m)
+    membershipPower = np.power(U, m)
+    sumByn = np.sum(membershipPower, axis=0)
+    A = 2 * sumByn.reshape(c, 1, 1) * np.eye(dimension) - (4 * m / (
+        m - 1) * sumByn).reshape(c, 1, 1)
+    distMat = distanceMat(centriod, dataSet)
+    distPower = np.power(distMat, -2.0 / (m - 1))
+    gk = np.sum(distPower, axis=1)
+    gkPower = np.power(gk, m - 1)
+    h = np.repeat(dataSet, c, axis=0).reshape(n, c, dimension) - V
+    h = h * membershipPower.reshape(n, c, 1)
+    H = np.zeros((c * dimension, c * dimension))
+    for i in range(c):
+        for j in range(c):
+            Bij = 4 * m / (m - 1) * np.sum(
+                np.sum(h[:, i] * h[:, j], axis=1) * gkPower)
+            if i == j:
+                tem = A[i] + Bij
+            else:
+                tem = Bij
+            H[i * dimension:(i + 1) * dimension, j * dimension:(j + 1) *
+              dimension] = tem
+    return H
+
+
+def calcMembershipHessian(membership, dataSet, m):
+    dimension = dataSet.shape[1]
+    n, c = membership.shape
+    centriod = calcCentriod(membership, dataSet, m)
+    membershipPower = np.power(membership, m)
+    denominator = np.sum(membershipPower, axis=0)
+    h = np.repeat(dataSet, c, axis=0).reshape(n, c, dimension) - V
+    h = h * (membershipPower / membership).reshape(n, c, 1)
+    H = np.zeros((c * n, c * n))
+    for i in range(c):
+        mat = np.dot(h[:, i], h[:, i].T)
+        diagD = np.diag(mat) / membershipPower[:, i]
+        D = np.diag(diagD)
+        G = mat / denominator[i]
+        tem = D - 2 * m / (m - 1) * G
+        H[i * n:(i + 1) * n, i * n:(i + 1) * n] = m * (m - 1) * tem
+        print i
+    return H
+
+
 def calcObjective(membership, centriod, dataSet, m):
     membershipPower = np.power(membership, m)
-    dist = distanceMat(centriod,dataSet)
+    dist = np.power(distanceMat(centriod, dataSet),2)
     return np.sum(membershipPower * dist)
 
 
@@ -152,23 +198,14 @@ def evaluate(membership, std, dataSet):
     classNum = membership.shape[1]
     exp = getExpResult(membership)
     a = b = c = d = 0
-    for i in range(n):
-        for j in range(i + 1, n):
-            expFlag = exp[i] == exp[j]
-            stdFlag = std[i] == std[j]
-            if expFlag and stdFlag:
-                a += 1
-                continue
-            if (not expFlag) and (not stdFlag):
-                d += 1
-                continue
-            if expFlag and (not stdFlag):
-                b += 1
-                continue
-            if (not expFlag) and stdFlag:
-                c += 1
-                continue
-    a = float(a)
+    expMat = np.repeat(exp,n).reshape(n,n)
+    expFlag = expMat == expMat.T
+    stdMat = np.repeat(std,n).reshape(n,n)
+    stdFlag = stdMat == stdMat.T
+    a = (np.sum(expFlag * stdFlag) - n)/2.0
+    b = np.sum(expFlag * -stdFlag) / 2.0
+    c = np.sum(expFlag * -stdFlag) /2.0
+    d = np.sum(-expFlag * -stdFlag) /2.0
     JC = a / (a + b + c)
     FMI = (a**2 / ((a + b) * (a + c)))**(1.0 / 2)
     RI = 2 * (a + d) / (n * (n - 1))
@@ -190,7 +227,7 @@ def fcmIteration(U, V, dataSet, m, c):
         # J = calcObjective(U, _V, dataSet, m)
         #drawImage(dataSet,getExpResult(U),c,J,_V )
         # print('{0},{1}').format(J, evaluate(U, classes, dataSet))
-        delta = distance(V,_V)**2
+        delta = distance(V, _V)**2
         V = _V
         MAX_ITERATION -= 1
     J = calcObjective(U, V, dataSet, m)
@@ -205,7 +242,8 @@ def fcm(dataSet, m, c):
 
 
 def sortByCol(ndarray):
-    return ndarray[np.argsort(ndarray[:,0])]
+    return ndarray[np.argsort(ndarray[:, 0])]
+
 
 class TabuSearch:
     def __init__(self,
@@ -235,12 +273,20 @@ class TabuSearch:
         listLength, c, dimension = self.tabuList.shape
         if not listLength:
             return False
-        for i in range(listLength):
+        for tabuIndex in range(listLength):
             sortObj = sortByCol(obj)
-            absMat = np.fabs(self.tabuList[i] - sortObj)
+            absMat = np.fabs(self.tabuList[tabuIndex] - sortObj)
+            # H = calcCentroidHessian(self.tabuList[tabuIndex] , dataSet, m)
+            # w = np.linalg.eigvalsh(H)
+            # print np.min(np.fabs(w))
+            # print '---------'
+            # print distance(self.tabuList[tabuIndex],sortObj)
+            # if np.min(np.fabs(w)) < distance(self.tabuList[tabuIndex],sortObj):
+            #     print '2222'
             if not absMat[absMat > self.neighbourhoodUnit].shape[0]:
                 print '-------------- tabu hint ------------------'
                 return True
+
         return False
 
     def addTabuObj(self, tabuObj):
@@ -351,38 +397,48 @@ if __name__ == '__main__':
     global figIndex
     figIndex = 1
     """ figIndex end """
-    dataFilePath = './data/R15.csv'
+    dataFilePath = './data/iris.csv'
     dataSet = loadCsv(dataFilePath)
     global classes
     classes = dataSet[:, -1]
     dataSet = normalization(dataSet[:, 0:-1])
-    c = int(15)
+    c = int(3)
     m = int(2)
     """ calc the time of run more times of iteration """
-    # start = time.clock()
-    # for i in range(0,20):
-    #     U, V, J = fcm(dataSet, m, c)
-    #     accuracy = evaluate(U, classes, dataSet)
-    #     printResult(accuracy, J)
-    # end = time.clock()
-    # print end - start
-    U = loadCsv('./tem/R15_U.csv')
-    V = loadCsv('./tem/R15_V.csv')
-    J = 11.9517360284
+    start = time.clock()
+    for i in range(0,200):
+        U, V, J = fcm(dataSet, m, c)
+        accuracy = evaluate(U, classes, dataSet)
+        printResult(accuracy, J)
+    end = time.clock()
+    print end-start
+    # U = loadCsv('./tem/R15_U.csv')
+    # V = loadCsv('./tem/R15_V.csv')
+    # H = calcMembershipHessian(U, dataSet, m)
+    # H = calcCentroidHessian(V, dataSet, m)
+    # w = np.linalg.eigvalsh(H)
+    # print np.average(w)
+    # print np.max(w)
+    # print len(w[w < 0])
+    # print w[w < 0]
+    # J = 11.9517360284
     # J = calcObjective(U,V,dataSet,m)
-    accuracy = evaluate(U, classes, dataSet)
-    printResult(accuracy, J)
+    # accuracy = evaluate(U, classes, dataSet)
+    # printResult(accuracy, J)
     # exp= getExpResult(U)
     # drawImage(dataSet,exp,c,'init',V)
     """ tabu search start """
     start = time.clock()
     ts = TabuSearch(
-        tabuList=np.array([]).reshape(0, *V.shape), MAX_ITERATION=20)
+        tabuList=np.array([]).reshape(0, *V.shape), MAX_ITERATION=40)
     U, V, J, accuracy = ts.start(U, V, J, accuracy, dataSet, m, c)
     print time.clock() - start
     printResult(accuracy, J)
-    exp = getExpResult(U)
-    drawImage(dataSet, exp, c, timeString, V)
+    # exp = getExpResult(U)
+    # H = calcCentroidHessian(V, dataSet, m)
+    # w= np.linalg.eigvalsh(H)
+    # print w
+    # drawImage(dataSet, exp, c, timeString, V)
     """ tabu search end """
     """ SA start """
     # U, V, J, accuracy = SA(U, V, J, accuracy)
