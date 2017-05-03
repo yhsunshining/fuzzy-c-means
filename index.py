@@ -123,13 +123,12 @@ def calcMembershipHessian(membership, dataSet, m):
         G = mat / denominator[i]
         tem = D - 2 * m / (m - 1) * G
         H[i * n:(i + 1) * n, i * n:(i + 1) * n] = m * (m - 1) * tem
-        print i
     return H
 
 
 def calcObjective(membership, centriod, dataSet, m):
     membershipPower = np.power(membership, m)
-    dist = np.power(distanceMat(centriod, dataSet),2)
+    dist = np.power(distanceMat(centriod, dataSet), 2)
     return np.sum(membershipPower * dist)
 
 
@@ -198,14 +197,14 @@ def evaluate(membership, std, dataSet):
     classNum = membership.shape[1]
     exp = getExpResult(membership)
     a = b = c = d = 0
-    expMat = np.repeat(exp,n).reshape(n,n)
+    expMat = np.repeat(exp, n).reshape(n, n)
     expFlag = expMat == expMat.T
-    stdMat = np.repeat(std,n).reshape(n,n)
+    stdMat = np.repeat(std, n).reshape(n, n)
     stdFlag = stdMat == stdMat.T
-    a = (np.sum(expFlag * stdFlag) - n)/2.0
+    a = (np.sum(expFlag * stdFlag) - n) / 2.0
     b = np.sum(expFlag * -stdFlag) / 2.0
-    c = np.sum(expFlag * -stdFlag) /2.0
-    d = np.sum(-expFlag * -stdFlag) /2.0
+    c = np.sum(expFlag * -stdFlag) / 2.0
+    d = np.sum(-expFlag * -stdFlag) / 2.0
     JC = a / (a + b + c)
     FMI = (a**2 / ((a + b) * (a + c)))**(1.0 / 2)
     RI = 2 * (a + d) / (n * (n - 1))
@@ -247,14 +246,14 @@ def sortByCol(ndarray):
 
 class TabuSearch:
     def __init__(self,
-                 tabuList,
-                 tabuLength=5,
+                 tabuList=[],
+                 tabuLength=None,
                  maxSearchNum=5,
                  MAX_ITERATION=20,
                  neighbourhoodUnit=0.01,
                  neighbourhoodTimes=5):
         self.tabuList = tabuList
-        self.tabuLength = tabuLength
+        self.tabuLength = tabuLength or int(0.25 * MAX_ITERATION)
         self.maxSearchNum = maxSearchNum
         self.MAX_ITERATION = MAX_ITERATION
         self.neighbourhoodUnit = neighbourhoodUnit
@@ -270,60 +269,77 @@ class TabuSearch:
         return self.neighbourhoodV(neighbour)
 
     def tabuJudge(self, obj):
-        listLength, c, dimension = self.tabuList.shape
+        listLength = len(self.tabuList)
+        c, dimension = obj.shape
         if not listLength:
             return False
         for tabuIndex in range(listLength):
             sortObj = sortByCol(obj)
-            absMat = np.fabs(self.tabuList[tabuIndex] - sortObj)
-            # H = calcCentroidHessian(self.tabuList[tabuIndex] , dataSet, m)
-            # w = np.linalg.eigvalsh(H)
-            # print np.min(np.fabs(w))
-            # print '---------'
-            # print distance(self.tabuList[tabuIndex],sortObj)
-            # if np.min(np.fabs(w)) < distance(self.tabuList[tabuIndex],sortObj):
-            #     print '2222'
-            if not absMat[absMat > self.neighbourhoodUnit].shape[0]:
+            absMat = np.fabs(self.tabuList[tabuIndex]['value'] - sortObj)
+            tabuU = self.tabuList[tabuIndex]['extra']
+            sortU = calcMembership(sortObj, dataSet, m)
+            dis = np.linalg.norm(tabuU - sortU)**2 + np.linalg.norm(absMat)**2
+            if dis <= np.min(np.sum(np.power(sortU, 2), axis=0)):
                 print '-------------- tabu hint ------------------'
                 return True
+            # H = calcMembershipHessian(self.tabuList[tabuIndex]['extra'] , dataSet, m)
+            # w = np.linalg.eigvalsh(H)
+            # if not absMat[absMat > self.neighbourhoodUnit].shape[0]:
+            #     print '-------------- tabu hint ------------------'
+            #     return True
 
         return False
 
-    def addTabuObj(self, tabuObj):
+    def addTabuObj(self, tabuObj, extra=None):
         sortObj = sortByCol(tabuObj)
-        self.tabuList = np.row_stack(
-            (self.tabuList, sortObj.reshape(1, *sortObj.shape)))
+        obj = {
+            'value': sortObj,
+            'extra': extra or calcMembership(sortObj, dataSet, m)
+        }
+        self.tabuList.append(obj)
 
     def updateList(self, tabuObj):
-        if self.tabuList.shape[0]:
-            self.tabuList = np.delete(self.tabuList, 0, axis=0)
+        if len(self.tabuList):
+            del self.tabuList[0]
         self.addTabuObj(tabuObj)
 
     def start(self, U, V, J, accuracy, dataSet, m, c):
         _U, _V, _J, _accuracy = U, V, J, accuracy
-        curTimes = 0
         _tabuLength = 0
         epsilon = 1e-6
         lastlocationJ = _J
         lastA = _accuracy
-        while (curTimes < self.MAX_ITERATION):
-            searchNum = 0
+        for iterationRound in xrange(self.MAX_ITERATION):
             locationJ = float('inf')
             locationA = 0
             locationU = locationV = None
-            while (searchNum < self.maxSearchNum):
+            """ genarator twice loop """
+            # neighbourhoodVs = np.array(
+            #     [self.neighbourhood(V) for i in xrange(self.maxSearchNum)])
+            # judge = np.array(
+            #     [self.tabuJudge(neighbourV) for neighbourV in neighbourhoodVs])
+            """ once loop """
+            neighbourhoodVs = []
+            judge = []
+            for i in xrange(self.maxSearchNum):
                 neighbourV = self.neighbourhood(V)
-                if not self.tabuJudge(neighbourV):
-                    temU, temV, temJ = fcmIteration(U, neighbourV, dataSet, m,
-                                                    c)
-                    temA = evaluate(temU, classes, dataSet)
-                    # if temJ < locationJ:
-                    if temA > locationA:
-                        locationU = temU
-                        locationV = temV
-                        locationJ = temJ
-                        locationA = temA
-                    searchNum += 1
+                neighbourhoodVs.append(neighbourV)
+                judge.append(self.tabuJudge(neighbourV))
+            neighbourhoodVs = np.array(neighbourhoodVs)
+            judge = np.array(judge)
+
+            if not judge.all():
+                neighbourhoodVs = neighbourhoodVs[judge == False]
+            for neighbourV in neighbourhoodVs:
+                temU, temV, temJ = fcmIteration(U, neighbourV, dataSet, m, c)
+                temA = evaluate(temU, classes, dataSet)
+                # if temJ < locationJ:
+                if temA > locationA:
+                    locationU = temU
+                    locationV = temV
+                    locationJ = temJ
+                    locationA = temA
+
             print('{0},{1}').format(locationJ, locationA)
             # if locationJ < _J:
             if locationA > _accuracy:
@@ -341,7 +357,6 @@ class TabuSearch:
                 break
             else:
                 lastlocationJ = locationJ
-            curTimes += 1
 
         return _U, _V, _J, _accuracy
 
@@ -422,15 +437,14 @@ if __name__ == '__main__':
     # print len(w[w < 0])
     # print w[w < 0]
     # J = 11.9517360284
-    # J = calcObjective(U,V,dataSet,m)
+    # J = calcObjective(U, V, dataSet, m)
     # accuracy = evaluate(U, classes, dataSet)
     # printResult(accuracy, J)
     # exp= getExpResult(U)
     # drawImage(dataSet,exp,c,'init',V)
     """ tabu search start """
     start = time.clock()
-    ts = TabuSearch(
-        tabuList=np.array([]).reshape(0, *V.shape), MAX_ITERATION=40)
+    ts = TabuSearch(MAX_ITERATION=20)
     U, V, J, accuracy = ts.start(U, V, J, accuracy, dataSet, m, c)
     print time.clock() - start
     printResult(accuracy, J)
