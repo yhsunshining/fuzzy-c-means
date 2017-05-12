@@ -54,7 +54,9 @@ def initMembership(n, c):
 
 def initCentroid(dataSet, c):
     dimension = np.shape(dataSet)[1]
-    return np.random.rand(dimension * c).reshape(c, dimension)
+    # return np.random.rand(dimension * c).reshape(c, dimension)
+    a = [[0.8574887422413442, 0.10109825224006086], [0.5923083391988512, 0.6658565400716234], [0.2596003660024273, 0.9460051412697439], [0.38962953675882217, 0.4343171489811012], [0.8861786088438488, 0.19190001553322], [0.01934210082889254, 0.20756480700274793], [0.6518368004862588, 0.46769177019926855], [0.2839022819999658, 0.678064652095539], [0.11509072190305047, 0.2984879366372082], [0.6668203272358659, 0.44678854258405565], [0.8909449296247398, 0.8238401480001747], [0.0810878583913075, 0.6886102962333017], [0.3056707358868215, 0.18807918927107725], [0.09641123403222229, 0.9659351509486931], [0.5780858988991402, 0.26787160927748965], [0.7033033675298799, 0.3821575872063153], [0.12546595035596353, 0.6992275366498454], [0.7699690193674422, 0.7388862185105358], [0.14502901067131913, 0.01252988016861345], [0.8291408653052127, 0.5055766696789465], [0.10010879814783802, 0.3277440189356433], [0.4745397266144854, 0.8586158496838048], [0.7254165664857137, 0.919428434087701], [0.12307715088095761, 0.5688056835235162], [0.9690572245387058, 0.08237680627267352], [0.4990706591983708, 0.3905115827781064], [0.45070143955456576, 0.7782498007330346], [0.3591903699479282, 0.22460948217120036], [0.7155802899781109, 0.8536592753752054],[0.35062023601491976, 0.7514458686231675], [0.6289584454881498, 0.6646431337118539]]
+    return np.array(a)
 
 
 def calcMembership(centriod, dataSet, m):
@@ -63,6 +65,8 @@ def calcMembership(centriod, dataSet, m):
     dist = distanceMat(centriod, dataSet)
     if dist[dist == 0].shape[0]:
         print '-------------- dist == 0 ------------------'
+        print centriod.tolist()
+        exit(0)
     distPower = np.power(dist, -2.0 / (m - 1))
     return distPower / np.dot(
         np.sum(distPower, axis=1).reshape((n, 1)), np.ones((1, c)))
@@ -182,7 +186,7 @@ def drawImage(dataSet, exp, c, figName="figure", V=None):
     # plt.legend()
     plt.grid(True)
     fig.savefig(
-        './images/R15/' + str(figIndex) + '.' + str(figName) + '.png',
+        './images/d31/' + str(figIndex) + '.' + str(figName) + '.png',
         dpi=fig.dpi)
     figIndex += 1
     # plt.show()
@@ -221,11 +225,17 @@ def fcmIteration(U, V, dataSet, m, c):
         U = calcMembership(V, dataSet, m)
         # J = calcObjective(U, V, dataSet, m)
         #drawImage(dataSet,getExpResult(U),c,J,V )
-        #print('{0},{1}').format(J, evaluate(U, classes, dataSet))
+        # print('{0},{1}').format(J, evaluate(U, classes, dataSet))
         _V = calcCentriod(U, dataSet, m)
         # J = calcObjective(U, _V, dataSet, m)
         #drawImage(dataSet,getExpResult(U),c,J,_V )
         # print('{0},{1}').format(J, evaluate(U, classes, dataSet))
+        # dis = np.linalg.norm(testU - U)**2 + np.linalg.norm(testV - _V)**2
+        # if dis <= np.min(np.sum(np.power(U, 2), axis=0)):
+        #     print True
+        # else :
+        #     print False
+
         delta = distance(V, _V)**2
         V = _V
         MAX_ITERATION -= 1
@@ -251,13 +261,16 @@ class TabuSearch:
                  maxSearchNum=5,
                  MAX_ITERATION=20,
                  neighbourhoodUnit=0.01,
-                 neighbourhoodTimes=5):
+                 neighbourhoodTimes=5,
+                 extra={}):
         self.tabuList = tabuList
         self.tabuLength = tabuLength or int(0.25 * MAX_ITERATION)
         self.maxSearchNum = maxSearchNum
         self.MAX_ITERATION = MAX_ITERATION
         self.neighbourhoodUnit = neighbourhoodUnit
         self.neighbourhoodTimes = neighbourhoodTimes
+        for key in extra:
+            setattr(self, key, extra[key])
 
     def neighbourhoodV(self, V):
         shape = V.shape
@@ -277,7 +290,7 @@ class TabuSearch:
             sortObj = sortByCol(obj)
             absMat = np.fabs(self.tabuList[tabuIndex]['value'] - sortObj)
             tabuU = self.tabuList[tabuIndex]['extra']
-            sortU = calcMembership(sortObj, dataSet, m)
+            sortU = calcMembership(sortObj, self.dataSet, self.m)
             dis = np.linalg.norm(tabuU - sortU)**2 + np.linalg.norm(absMat)**2
             if dis <= np.min(np.sum(np.power(sortU, 2), axis=0)):
                 print '-------------- tabu hint ------------------'
@@ -294,7 +307,7 @@ class TabuSearch:
         sortObj = sortByCol(tabuObj)
         obj = {
             'value': sortObj,
-            'extra': extra or calcMembership(sortObj, dataSet, m)
+            'extra': extra or calcMembership(sortObj, self.dataSet, self.m)
         }
         self.tabuList.append(obj)
 
@@ -353,45 +366,47 @@ class TabuSearch:
                 _tabuLength += 1
             else:
                 self.updateList(locationV)
-            if abs(lastlocationJ - locationJ) <= epsilon:
-                break
-            else:
-                lastlocationJ = locationJ
+            # if -epsilon <= lastlocationJ - locationJ <= epsilon:
+            #     break
+            # else:
+            #     lastlocationJ = locationJ
 
         return _U, _V, _J, _accuracy
 
 
 def SA(U, V, J, accuracy):
-    T0 = 200
+    T0 = 0.2
     T = TMAX = 500
-    k = 0.99
-    MAX_ITERATION = 120
-    p = 1 - 1e-4
+    k = 0.9
+    MAX_ITERATION = 100
+    inertia = 0.7
+    epsilon = 1e-8
     curIndex = 0
     _U, _V, _J, _accuracy = locationU, locationV, locationJ, locationA = U, V, J, accuracy
     vShape = V.shape
-    while (curIndex < MAX_ITERATION):
+    for i in xrange(MAX_ITERATION)
         locationU = calcMembership(locationV, dataSet, m)
+        lastV = locationV
         locationV = calcCentriod(locationU, dataSet, m)
         locationJ = calcObjective(locationU, locationV, dataSet, m)
-        locationA = evaluate(_U, classes, dataSet)
-        temV = (np.random.rand(*vShape) - 0.5) * 0.01 + locationV.copy()
+        locationA = evaluate(locationU, classes, dataSet)
+        temV = locationV + inertia * (locationV - lastV)
+        # temV = (np.random.rand(*vShape) - 0.5) * 0.01 + locationV.copy()
         temU = calcMembership(temV, dataSet, m)
         temJ = calcObjective(temU, temV, dataSet, m)
         temA = evaluate(temU, classes, dataSet)
-        _p = exp(float(locationJ - temJ) / (k * T))
-        if (temJ <= locationJ) or _p > p:
-            # _p = exp(float(temA - locationA) / (k * T))
-            # if (temA >= locationA) or _p > p:
+        # p = exp(float(locationJ - temJ) / (k * T))
+        # if (temJ <= locationJ) or p > np.random.rand():
+        p = exp(float(temA - locationA)*500 / T)
+        print p
+        if (temA >= locationA) or p > np.random.rand():
             locationU, locationV, locationJ, locationA = temU, temV, temJ, temA
-        if (locationJ < _J):
-            # if (locationA > _accuracy):
+        # if (locationJ < _J):
+        if (locationA > _accuracy):
             _U, _V, _J, _accuracy = locationU, locationV, locationJ, locationA
         T = k * T
-        # print T
-        # if (T < T0):
-        #     break
-        curIndex += 1
+        if (T < T0) or (distance(lastV, locationV)**2 < epsilon):
+            break
         print("{0},{1}").format(locationJ, locationA)
     return _U, _V, _J, _accuracy
 
@@ -404,50 +419,47 @@ def printResult(accuracy, J):
 
 if __name__ == '__main__':
     """ clean up dir"""
-    # shutil.rmtree('./images/R15')
-    # os.mkdir('./images/R15')
+    # shutil.rmtree('./images/d31')
+    # os.mkdir('./images/d31')
     timeString = time.strftime('%Y_%m_%d-%H%M%S')
     """ clean end """
     """ figIndex init """
     global figIndex
     figIndex = 1
     """ figIndex end """
-    dataFilePath = './data/iris.csv'
+    dataFilePath = './data/d31.csv'
     dataSet = loadCsv(dataFilePath)
     global classes
     classes = dataSet[:, -1]
     dataSet = normalization(dataSet[:, 0:-1])
-    c = int(3)
+    c = int(31)
     m = int(2)
     """ calc the time of run more times of iteration """
-    start = time.clock()
-    for i in range(0,200):
-        U, V, J = fcm(dataSet, m, c)
-        accuracy = evaluate(U, classes, dataSet)
-        printResult(accuracy, J)
-    end = time.clock()
-    print end-start
-    # U = loadCsv('./tem/R15_U.csv')
-    # V = loadCsv('./tem/R15_V.csv')
-    # H = calcMembershipHessian(U, dataSet, m)
-    # H = calcCentroidHessian(V, dataSet, m)
-    # w = np.linalg.eigvalsh(H)
-    # print np.average(w)
-    # print np.max(w)
-    # print len(w[w < 0])
-    # print w[w < 0]
-    # J = 11.9517360284
+    # start = time.clock()
+    # for i in range(0,200):
+    #     U, V, J = fcm(dataSet, m, c)
+    #     accuracy = evaluate(U, classes, dataSet)
+    #     printResult(accuracy, J)
+    # end = time.clock()
+    # print end-start
+    # U = loadCsv('./tem/d31_U.csv')
+    # V = loadCsv('./tem/d31_V.csv')
+    # J = 2.90098815891/0.895706457478
     # J = calcObjective(U, V, dataSet, m)
     # accuracy = evaluate(U, classes, dataSet)
     # printResult(accuracy, J)
     # exp= getExpResult(U)
     # drawImage(dataSet,exp,c,'init',V)
     """ tabu search start """
-    start = time.clock()
-    ts = TabuSearch(MAX_ITERATION=20)
-    U, V, J, accuracy = ts.start(U, V, J, accuracy, dataSet, m, c)
-    print time.clock() - start
-    printResult(accuracy, J)
+    # start = time.clock()
+    # ts = TabuSearch(MAX_ITERATION=40,extra={
+    #     'dataSet':dataSet,
+    #     'm':m,
+    #     'c':c
+    # })
+    # U, V, J, accuracy = ts.start(U, V, J, accuracy, dataSet, m, c)
+    # print time.clock() - start
+    # printResult(accuracy, J)
     # exp = getExpResult(U)
     # H = calcCentroidHessian(V, dataSet, m)
     # w= np.linalg.eigvalsh(H)
@@ -455,6 +467,10 @@ if __name__ == '__main__':
     # drawImage(dataSet, exp, c, timeString, V)
     """ tabu search end """
     """ SA start """
-    # U, V, J, accuracy = SA(U, V, J, accuracy)
-    # printResult(accuracy, J)
+    start = time.clock()
+    V = initCentroid(dataSet, c)
+    U = J = accuracy = None
+    U, V, J, accuracy = SA(U, V, J, accuracy)
+    printResult(accuracy, J)
+    print time.clock() - start
     """ SA end """
