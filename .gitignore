@@ -7,6 +7,11 @@ tem/
 images/*
 *.sh
 webhook.py
+*.png
+data/lena*
+data/picasso*
+
+
 # Byte-compiled / optimized / DLL files
 __pycache__/
 *.py[cod]
