@@ -45,8 +45,8 @@ class TS(TabuSearch):
                 self.updateList(locationV)
             # if -epsilon <= lastlocationJ - locationJ <= epsilon:
             #     break
-            else:
-                lastlocationJ = locationJ
+            # else:
+            #     lastlocationJ = locationJ
             curTimes += 1
 
         return _U, _V, _J
