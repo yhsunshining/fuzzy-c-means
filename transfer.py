@@ -5,26 +5,33 @@ import cv2
 
 
 class TS(TabuSearch):
-    def start(self, U, V, J, dataSet):
+    def start(self, U, V, J, dataSet, m, c):
         _U, _V, _J = U, V, J
         curTimes = 0
         _tabuLength = 0
         epsilon = 1e-6
         lastlocationJ = _J
         while (curTimes < self.MAX_ITERATION):
-            searchNum = 0
             locationJ = float('inf')
             locationU = locationV = None
-            while (searchNum < self.maxSearchNum):
+            neighbourhoodVs = []
+            judge = []
+            for i in xrange(self.maxSearchNum):
                 neighbourV = self.neighbourhood(V)
-                if not self.tabuJudge(neighbourV):
-                    temU, temV, temJ = fcmIteration(U, neighbourV, dataSet, m,
-                                                    c)
-                    if temJ < locationJ:
-                        locationU = temU
-                        locationV = temV
-                        locationJ = temJ
-                    searchNum += 1
+                neighbourhoodVs.append(neighbourV)
+                judge.append(self.tabuJudge(neighbourV))
+            neighbourhoodVs = np.array(neighbourhoodVs)
+            judge = np.array(judge)
+
+            if not judge.all():
+                neighbourhoodVs = neighbourhoodVs[judge == False]
+            for neighbourV in neighbourhoodVs:
+                temU, temV, temJ = fcmIteration(U, neighbourV, dataSet, m, c)
+                if temJ < locationJ:
+                    locationU = temU
+                    locationV = temV
+                    locationJ = temJ
+
             if locationJ < _J:
                 _U, _V, _J = locationU, locationV, locationJ
                 self.neighbourhoodTimes = max(5, self.neighbourhoodTimes - 5)
@@ -36,8 +43,8 @@ class TS(TabuSearch):
                 _tabuLength += 1
             else:
                 self.updateList(locationV)
-            if abs(lastlocationJ - locationJ) <= epsilon:
-                break
+            # if -epsilon <= lastlocationJ - locationJ <= epsilon:
+            #     break
             else:
                 lastlocationJ = locationJ
             curTimes += 1
@@ -118,9 +125,10 @@ def matchByCos(origin, target, seq=None):
         del targetDict[keys[selectIndex]]
     return matchMap
 
-def matchByChannel(origin,target):
-    originIndex = np.argsort(origin[:,0])
-    targetIndex = np.argsort(target[:,0])
+
+def matchByChannel(origin, target):
+    originIndex = np.argsort(origin[:, 0])
+    targetIndex = np.argsort(target[:, 0])
     originLength = len(originIndex)
     matchMap = {}
     for i in range(originLength):
@@ -168,7 +176,7 @@ def transfer(originU, originV, originData, originRange, targetU, targetV,
     #         originStd, axis=None))),
     #     np.column_stack((normalization(targetV, axis=None), normalization(
     #         targetStd, axis=None))), originKeys.tolist())
-    matchMap = matchByChannel(originV,targetV)
+    matchMap = matchByChannel(originV, targetV)
 
     # print targetV
     # use frequency to match
@@ -186,9 +194,11 @@ def transfer(originU, originV, originData, originRange, targetU, targetV,
         originStd = np.std(originSlice, axis=0)
         originMeans = originV[i]
         targetMeans = targetV[matchMap[i]]
-        out[originMask] = (originSlice - originMeans[0:3]
-                           ) * targetStd[matchMap[i]][0:3] / originStd[0:3] + targetMeans[0:3]
-        out_color[originMask] = np.zeros(originSlice.shape) + targetV[matchMap[i]][0:3] 
+        out[originMask] = (
+            originSlice - originMeans[0:3]
+        ) * targetStd[matchMap[i]][0:3] / originStd[0:3] + targetMeans[0:3]
+        out_color[originMask] = np.zeros(
+            originSlice.shape) + targetV[matchMap[i]][0:3]
 
     # normalization
     outRange = rangeMat(out)
@@ -212,10 +222,11 @@ def showClustering(U, V, rangeMat, data, shape):
         mask = exp == i
         dataSlice = data[mask]
         data[mask] = np.zeros(dataSlice.shape) + V[i]
-    data = np.uint8(data[:,0:3])
+    data = np.uint8(data[:, 0:3])
     data = convert3D(data, shape, 3)
     data = cv2.cvtColor(data, cv2.COLOR_LAB2RGB)
-    plt.imsave('./' + time.strftime('%Y_%m_%d-%H%M%S') + '.clustering.png', data)
+    plt.imsave('./' + time.strftime('%Y_%m_%d-%H%M%S') + '.clustering.png',
+               data)
 
 
 def loadImageData(url, meanshift=False, position=True):
@@ -225,54 +236,60 @@ def loadImageData(url, meanshift=False, position=True):
         img = cv2.pyrMeanShiftFiltering(img, 9, 20)
     out = conv2D = np.float32(convert2D(img, img.shape, 3))
     if position:
-        out = np.zeros((conv2D.shape[0],conv2D.shape[1]+2))
-        out[:,0:-2] = conv2D
-        out[:,-2] = np.repeat(range(img.shape[0]),img.shape[1])
-        out[:,-1] = np.tile(range(img.shape[1]),img.shape[0])
+        out = np.zeros((conv2D.shape[0], conv2D.shape[1] + 2))
+        out[:, 0:-2] = conv2D
+        out[:, -2] = np.repeat(range(img.shape[0]), img.shape[1])
+        out[:, -1] = np.tile(range(img.shape[1]), img.shape[0])
     return out, img.shape
 
 
 if __name__ == '__main__':
     originImagePath = './images/filter/scream.jpg'
-    targetImagePath = './images/filter/picasso_1.jpg'
+    targetImagePath = './images/filter/stars_200.jpg'
     start = time.clock()
-    filterData, filterShape = loadImageData(targetImagePath, False)
-    originData, originShape = loadImageData(originImagePath, True)
+    filterData, filterShape = loadImageData(targetImagePath, False, False)
+    originData, originShape = loadImageData(originImagePath, True, False)
     filterRange = rangeMat(filterData)
     originRange = rangeMat(originData)
     filterData = normalization(filterData)
     originData = normalization(originData)
-    filterData[:,[-1,-2]] = filterData[:,[-1,-2]] * 0.3
-    originData[:,[-1,-2]] = originData[:,[-1,-2]] * 0.3
-    c = int(6)
+    c = int(5)
     m = int(2)
     targetU, targetV, targetJ = fcm(filterData, m, c)
     # saveUV(targetU,targetV,'picasso_still_life_5')
     # targetU = loadCsv('./tem/picasso_still_life_5_U.csv')
     # targetV = loadCsv('./tem/picasso_still_life_5_V.csv')
     # targetJ = calcObjective(targetU, targetV, filterData, m)
-    originU, originV, originJ = fcm(originData, m, c)
+    # originU, originV, originJ = fcm(originData, m, c)
     # saveUV(originU,originV,'scream_5')
     # originU = loadCsv('./tem/scream_5_U.csv')
     # originV = loadCsv('./tem/scream_5_V.csv')
     # originJ = calcObjective(originU, originV, originData, m)
     showClustering(targetU, targetV, filterRange, filterData, filterShape)
-    transfer(originU, originV, originData, originRange, targetU, targetV,
-             filterData, filterRange)
+    # showClustering(originU, originV, originRange, originData, originShape)
+    # transfer(originU, originV, originData, originRange, targetU, targetV,
+    #          filterData, filterRange)
     # print('before origin J:{}').format(originJ)
     print('before target J:{}').format(targetJ)
     print time.clock() - start
 
-    # start = time.clock()
-    # filterTs = TS(MAX_ITERATION=20)
-    # targetU, targetV, targetJ = filterTs.start(targetU, targetV, targetJ,
-    #                                            filterData)
-    originTs = TS(MAX_ITERATION=20)
+    start = time.clock()
+    filterTs = TS(MAX_ITERATION=20,
+                  extra={'dataSet': filterData,
+                         'm': m,
+                         'c': c})
+    targetU, targetV, targetJ = filterTs.start(targetU, targetV, targetJ,
+                                               filterData, m, c)
+    # originTs = TS(MAX_ITERATION=20,
+    #               extra={'dataSet': originData,
+    #                      'm': m,
+    #                      'c': c})
     # originU, originV, originJ = originTs.start(originU, originV, originJ,
-    #                                            originData)
-    # showClustering(targetU, targetV, filterRange, filterData, filterShape)
-    transfer(originU, originV, originData, originRange, targetU, targetV,
-             filterData, filterRange)
+    #                                            originData, m, c)
+    # showClustering(originU, originV, originRange, originData, originShape)
+    showClustering(targetU, targetV, filterRange, filterData, filterShape)
+    # transfer(originU, originV, originData, originRange, targetU, targetV,
+    #          filterData, filterRange)
     # print('after origin J:{}').format(originJ)
-    # print('after target J:{}').format(targetJ)
-    # print time.clock() - start
+    print('after target J:{}').format(targetJ)
+    print time.clock() - start

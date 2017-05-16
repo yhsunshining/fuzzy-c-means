@@ -54,9 +54,8 @@ def initMembership(n, c):
 
 def initCentroid(dataSet, c):
     dimension = np.shape(dataSet)[1]
-    # return np.random.rand(dimension * c).reshape(c, dimension)
-    a = [[0.8574887422413442, 0.10109825224006086], [0.5923083391988512, 0.6658565400716234], [0.2596003660024273, 0.9460051412697439], [0.38962953675882217, 0.4343171489811012], [0.8861786088438488, 0.19190001553322], [0.01934210082889254, 0.20756480700274793], [0.6518368004862588, 0.46769177019926855], [0.2839022819999658, 0.678064652095539], [0.11509072190305047, 0.2984879366372082], [0.6668203272358659, 0.44678854258405565], [0.8909449296247398, 0.8238401480001747], [0.0810878583913075, 0.6886102962333017], [0.3056707358868215, 0.18807918927107725], [0.09641123403222229, 0.9659351509486931], [0.5780858988991402, 0.26787160927748965], [0.7033033675298799, 0.3821575872063153], [0.12546595035596353, 0.6992275366498454], [0.7699690193674422, 0.7388862185105358], [0.14502901067131913, 0.01252988016861345], [0.8291408653052127, 0.5055766696789465], [0.10010879814783802, 0.3277440189356433], [0.4745397266144854, 0.8586158496838048], [0.7254165664857137, 0.919428434087701], [0.12307715088095761, 0.5688056835235162], [0.9690572245387058, 0.08237680627267352], [0.4990706591983708, 0.3905115827781064], [0.45070143955456576, 0.7782498007330346], [0.3591903699479282, 0.22460948217120036], [0.7155802899781109, 0.8536592753752054],[0.35062023601491976, 0.7514458686231675], [0.6289584454881498, 0.6646431337118539]]
-    return np.array(a)
+    return np.random.rand(dimension * c).reshape(c, dimension)
+    
 
 
 def calcMembership(centriod, dataSet, m):
@@ -263,20 +262,24 @@ class TabuSearch:
                  neighbourhoodUnit=0.01,
                  neighbourhoodTimes=5,
                  extra={}):
-        self.tabuList = tabuList
+        self.tabuList = tabuList[:]
         self.tabuLength = tabuLength or int(0.25 * MAX_ITERATION)
         self.maxSearchNum = maxSearchNum
         self.MAX_ITERATION = MAX_ITERATION
         self.neighbourhoodUnit = neighbourhoodUnit
         self.neighbourhoodTimes = neighbourhoodTimes
-        for key in extra:
+        for key in extra.copy():
             setattr(self, key, extra[key])
 
     def neighbourhoodV(self, V):
-        shape = V.shape
-        _V = (np.random.rand(*shape) - 0.5
-              ) * self.neighbourhoodUnit * self.neighbourhoodTimes + V.copy()
-        return _V
+        c, s = V.shape
+        # _V = np.random.rand(c, s) - 0.5
+        # return _V * self.neighbourhoodUnit * self.neighbourhoodTimes + V.copy()
+        _V = np.random.randn(c, s)
+        tem = np.linalg.norm(_V, axis=1)
+        r = (np.random.rand(c, 1) * 0.05 +
+             self.neighbourhoodUnit * self.neighbourhoodTimes)
+        return _V / tem.reshape(c, 1) * r + V
 
     def neighbourhood(self, neighbour):
         return self.neighbourhoodV(neighbour)
@@ -355,12 +358,13 @@ class TabuSearch:
 
             print('{0},{1}').format(locationJ, locationA)
             # if locationJ < _J:
-            if locationA > _accuracy:
-                _U, _V, _J, _accuracy = locationU, locationV, locationJ, locationA
-                self.neighbourhoodTimes = max(5, self.neighbourhoodTimes - 5)
-            else:
+            if locationA <= accuracy:
                 self.neighbourhoodTimes = min(50, self.neighbourhoodTimes + 5)
-            U, V = locationU, locationV
+            else:
+                if locationA > _accuracy:
+                    _U, _V, _J, _accuracy = locationU, locationV, locationJ, locationA
+                self.neighbourhoodTimes = max(5, self.neighbourhoodTimes - 5)
+            U, V, J, accuracy = locationU, locationV, locationJ, locationA
             if _tabuLength < self.tabuLength:
                 self.addTabuObj(locationV)
                 _tabuLength += 1
@@ -384,20 +388,18 @@ def SA(U, V, J, accuracy):
     curIndex = 0
     _U, _V, _J, _accuracy = locationU, locationV, locationJ, locationA = U, V, J, accuracy
     vShape = V.shape
-    for i in xrange(MAX_ITERATION)
-        locationU = calcMembership(locationV, dataSet, m)
+    for i in xrange(MAX_ITERATION):
         lastV = locationV
-        locationV = calcCentriod(locationU, dataSet, m)
-        locationJ = calcObjective(locationU, locationV, dataSet, m)
+        locationU, locationV, locationJ = fcmIteration(locationU, locationV,
+                                                       dataSet, m, c)
         locationA = evaluate(locationU, classes, dataSet)
-        temV = locationV + inertia * (locationV - lastV)
-        # temV = (np.random.rand(*vShape) - 0.5) * 0.01 + locationV.copy()
-        temU = calcMembership(temV, dataSet, m)
-        temJ = calcObjective(temU, temV, dataSet, m)
+        flag = 1 if np.random.rand() > 0.5 else -1
+        ineritiaV = locationV + flag * inertia * (locationV - lastV)
+        temU, temV, temJ = fcmIteration(U, ineritiaV, dataSet, m, c)
         temA = evaluate(temU, classes, dataSet)
         # p = exp(float(locationJ - temJ) / (k * T))
         # if (temJ <= locationJ) or p > np.random.rand():
-        p = exp(float(temA - locationA)*500 / T)
+        p = exp(float(temA - locationA) * 500 / T)
         print p
         if (temA >= locationA) or p > np.random.rand():
             locationU, locationV, locationJ, locationA = temU, temV, temJ, temA
@@ -444,7 +446,7 @@ if __name__ == '__main__':
     # print end-start
     # U = loadCsv('./tem/d31_U.csv')
     # V = loadCsv('./tem/d31_V.csv')
-    # J = 2.90098815891/0.895706457478
+    # J = 3.2091437736/0.826388082328
     # J = calcObjective(U, V, dataSet, m)
     # accuracy = evaluate(U, classes, dataSet)
     # printResult(accuracy, J)
