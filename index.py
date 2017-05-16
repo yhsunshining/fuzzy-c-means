@@ -55,6 +55,7 @@ def initMembership(n, c):
 def initCentroid(dataSet, c):
     dimension = np.shape(dataSet)[1]
     return np.random.rand(dimension * c).reshape(c, dimension)
+    
 
 
 def calcMembership(centriod, dataSet, m):
@@ -63,6 +64,8 @@ def calcMembership(centriod, dataSet, m):
     dist = distanceMat(centriod, dataSet)
     if dist[dist == 0].shape[0]:
         print '-------------- dist == 0 ------------------'
+        print centriod.tolist()
+        exit(0)
     distPower = np.power(dist, -2.0 / (m - 1))
     return distPower / np.dot(
         np.sum(distPower, axis=1).reshape((n, 1)), np.ones((1, c)))
@@ -182,7 +185,7 @@ def drawImage(dataSet, exp, c, figName="figure", V=None):
     # plt.legend()
     plt.grid(True)
     fig.savefig(
-        './images/R15/' + str(figIndex) + '.' + str(figName) + '.png',
+        './images/d31/' + str(figIndex) + '.' + str(figName) + '.png',
         dpi=fig.dpi)
     figIndex += 1
     # plt.show()
@@ -221,11 +224,17 @@ def fcmIteration(U, V, dataSet, m, c):
         U = calcMembership(V, dataSet, m)
         # J = calcObjective(U, V, dataSet, m)
         #drawImage(dataSet,getExpResult(U),c,J,V )
-        #print('{0},{1}').format(J, evaluate(U, classes, dataSet))
+        # print('{0},{1}').format(J, evaluate(U, classes, dataSet))
         _V = calcCentriod(U, dataSet, m)
         # J = calcObjective(U, _V, dataSet, m)
         #drawImage(dataSet,getExpResult(U),c,J,_V )
         # print('{0},{1}').format(J, evaluate(U, classes, dataSet))
+        # dis = np.linalg.norm(testU - U)**2 + np.linalg.norm(testV - _V)**2
+        # if dis <= np.min(np.sum(np.power(U, 2), axis=0)):
+        #     print True
+        # else :
+        #     print False
+
         delta = distance(V, _V)**2
         V = _V
         MAX_ITERATION -= 1
@@ -251,19 +260,26 @@ class TabuSearch:
                  maxSearchNum=5,
                  MAX_ITERATION=20,
                  neighbourhoodUnit=0.01,
-                 neighbourhoodTimes=5):
-        self.tabuList = tabuList
+                 neighbourhoodTimes=5,
+                 extra={}):
+        self.tabuList = tabuList[:]
         self.tabuLength = tabuLength or int(0.25 * MAX_ITERATION)
         self.maxSearchNum = maxSearchNum
         self.MAX_ITERATION = MAX_ITERATION
         self.neighbourhoodUnit = neighbourhoodUnit
         self.neighbourhoodTimes = neighbourhoodTimes
+        for key in extra.copy():
+            setattr(self, key, extra[key])
 
     def neighbourhoodV(self, V):
-        shape = V.shape
-        _V = (np.random.rand(*shape) - 0.5
-              ) * self.neighbourhoodUnit * self.neighbourhoodTimes + V.copy()
-        return _V
+        c, s = V.shape
+        # _V = np.random.rand(c, s) - 0.5
+        # return _V * self.neighbourhoodUnit * self.neighbourhoodTimes + V.copy()
+        _V = np.random.randn(c, s)
+        tem = np.linalg.norm(_V, axis=1)
+        r = (np.random.rand(c, 1) * 0.05 +
+             self.neighbourhoodUnit * self.neighbourhoodTimes)
+        return _V / tem.reshape(c, 1) * r + V
 
     def neighbourhood(self, neighbour):
         return self.neighbourhoodV(neighbour)
@@ -277,7 +293,7 @@ class TabuSearch:
             sortObj = sortByCol(obj)
             absMat = np.fabs(self.tabuList[tabuIndex]['value'] - sortObj)
             tabuU = self.tabuList[tabuIndex]['extra']
-            sortU = calcMembership(sortObj, dataSet, m)
+            sortU = calcMembership(sortObj, self.dataSet, self.m)
             dis = np.linalg.norm(tabuU - sortU)**2 + np.linalg.norm(absMat)**2
             if dis <= np.min(np.sum(np.power(sortU, 2), axis=0)):
                 print '-------------- tabu hint ------------------'
@@ -294,7 +310,7 @@ class TabuSearch:
         sortObj = sortByCol(tabuObj)
         obj = {
             'value': sortObj,
-            'extra': extra or calcMembership(sortObj, dataSet, m)
+            'extra': extra or calcMembership(sortObj, self.dataSet, self.m)
         }
         self.tabuList.append(obj)
 
@@ -342,56 +358,57 @@ class TabuSearch:
 
             print('{0},{1}').format(locationJ, locationA)
             # if locationJ < _J:
-            if locationA > _accuracy:
-                _U, _V, _J, _accuracy = locationU, locationV, locationJ, locationA
-                self.neighbourhoodTimes = max(5, self.neighbourhoodTimes - 5)
-            else:
+            if locationA <= accuracy:
                 self.neighbourhoodTimes = min(50, self.neighbourhoodTimes + 5)
-            U, V = locationU, locationV
+            else:
+                if locationA > _accuracy:
+                    _U, _V, _J, _accuracy = locationU, locationV, locationJ, locationA
+                self.neighbourhoodTimes = max(5, self.neighbourhoodTimes - 5)
+            U, V, J, accuracy = locationU, locationV, locationJ, locationA
             if _tabuLength < self.tabuLength:
                 self.addTabuObj(locationV)
                 _tabuLength += 1
             else:
                 self.updateList(locationV)
-            if abs(lastlocationJ - locationJ) <= epsilon:
-                break
-            else:
-                lastlocationJ = locationJ
+            # if -epsilon <= lastlocationJ - locationJ <= epsilon:
+            #     break
+            # else:
+            #     lastlocationJ = locationJ
 
         return _U, _V, _J, _accuracy
 
 
 def SA(U, V, J, accuracy):
-    T0 = 200
+    T0 = 0.2
     T = TMAX = 500
-    k = 0.99
-    MAX_ITERATION = 120
-    p = 1 - 1e-4
+    k = 0.9
+    MAX_ITERATION = 100
+    inertia = 0.7
+    epsilon = 1e-8
     curIndex = 0
     _U, _V, _J, _accuracy = locationU, locationV, locationJ, locationA = U, V, J, accuracy
     vShape = V.shape
-    while (curIndex < MAX_ITERATION):
-        locationU = calcMembership(locationV, dataSet, m)
-        locationV = calcCentriod(locationU, dataSet, m)
-        locationJ = calcObjective(locationU, locationV, dataSet, m)
-        locationA = evaluate(_U, classes, dataSet)
-        temV = (np.random.rand(*vShape) - 0.5) * 0.01 + locationV.copy()
-        temU = calcMembership(temV, dataSet, m)
-        temJ = calcObjective(temU, temV, dataSet, m)
+    for i in xrange(MAX_ITERATION):
+        lastV = locationV
+        locationU, locationV, locationJ = fcmIteration(locationU, locationV,
+                                                       dataSet, m, c)
+        locationA = evaluate(locationU, classes, dataSet)
+        flag = 1 if np.random.rand() > 0.5 else -1
+        ineritiaV = locationV + flag * inertia * (locationV - lastV)
+        temU, temV, temJ = fcmIteration(U, ineritiaV, dataSet, m, c)
         temA = evaluate(temU, classes, dataSet)
-        _p = exp(float(locationJ - temJ) / (k * T))
-        if (temJ <= locationJ) or _p > p:
-            # _p = exp(float(temA - locationA) / (k * T))
-            # if (temA >= locationA) or _p > p:
+        # p = exp(float(locationJ - temJ) / (k * T))
+        # if (temJ <= locationJ) or p > np.random.rand():
+        p = exp(float(temA - locationA) * 500 / T)
+        print p
+        if (temA >= locationA) or p > np.random.rand():
             locationU, locationV, locationJ, locationA = temU, temV, temJ, temA
-        if (locationJ < _J):
-            # if (locationA > _accuracy):
+        # if (locationJ < _J):
+        if (locationA > _accuracy):
             _U, _V, _J, _accuracy = locationU, locationV, locationJ, locationA
         T = k * T
-        # print T
-        # if (T < T0):
-        #     break
-        curIndex += 1
+        if (T < T0) or (distance(lastV, locationV)**2 < epsilon):
+            break
         print("{0},{1}").format(locationJ, locationA)
     return _U, _V, _J, _accuracy
 
@@ -404,50 +421,47 @@ def printResult(accuracy, J):
 
 if __name__ == '__main__':
     """ clean up dir"""
-    # shutil.rmtree('./images/R15')
-    # os.mkdir('./images/R15')
+    # shutil.rmtree('./images/d31')
+    # os.mkdir('./images/d31')
     timeString = time.strftime('%Y_%m_%d-%H%M%S')
     """ clean end """
     """ figIndex init """
     global figIndex
     figIndex = 1
     """ figIndex end """
-    dataFilePath = './data/iris.csv'
+    dataFilePath = './data/d31.csv'
     dataSet = loadCsv(dataFilePath)
     global classes
     classes = dataSet[:, -1]
     dataSet = normalization(dataSet[:, 0:-1])
-    c = int(3)
+    c = int(31)
     m = int(2)
     """ calc the time of run more times of iteration """
-    start = time.clock()
-    for i in range(0,200):
-        U, V, J = fcm(dataSet, m, c)
-        accuracy = evaluate(U, classes, dataSet)
-        printResult(accuracy, J)
-    end = time.clock()
-    print end-start
-    # U = loadCsv('./tem/R15_U.csv')
-    # V = loadCsv('./tem/R15_V.csv')
-    # H = calcMembershipHessian(U, dataSet, m)
-    # H = calcCentroidHessian(V, dataSet, m)
-    # w = np.linalg.eigvalsh(H)
-    # print np.average(w)
-    # print np.max(w)
-    # print len(w[w < 0])
-    # print w[w < 0]
-    # J = 11.9517360284
+    # start = time.clock()
+    # for i in range(0,200):
+    #     U, V, J = fcm(dataSet, m, c)
+    #     accuracy = evaluate(U, classes, dataSet)
+    #     printResult(accuracy, J)
+    # end = time.clock()
+    # print end-start
+    # U = loadCsv('./tem/d31_U.csv')
+    # V = loadCsv('./tem/d31_V.csv')
+    # J = 3.2091437736/0.826388082328
     # J = calcObjective(U, V, dataSet, m)
     # accuracy = evaluate(U, classes, dataSet)
     # printResult(accuracy, J)
     # exp= getExpResult(U)
     # drawImage(dataSet,exp,c,'init',V)
     """ tabu search start """
-    start = time.clock()
-    ts = TabuSearch(MAX_ITERATION=20)
-    U, V, J, accuracy = ts.start(U, V, J, accuracy, dataSet, m, c)
-    print time.clock() - start
-    printResult(accuracy, J)
+    # start = time.clock()
+    # ts = TabuSearch(MAX_ITERATION=40,extra={
+    #     'dataSet':dataSet,
+    #     'm':m,
+    #     'c':c
+    # })
+    # U, V, J, accuracy = ts.start(U, V, J, accuracy, dataSet, m, c)
+    # print time.clock() - start
+    # printResult(accuracy, J)
     # exp = getExpResult(U)
     # H = calcCentroidHessian(V, dataSet, m)
     # w= np.linalg.eigvalsh(H)
@@ -455,6 +469,10 @@ if __name__ == '__main__':
     # drawImage(dataSet, exp, c, timeString, V)
     """ tabu search end """
     """ SA start """
-    # U, V, J, accuracy = SA(U, V, J, accuracy)
-    # printResult(accuracy, J)
+    start = time.clock()
+    V = initCentroid(dataSet, c)
+    U = J = accuracy = None
+    U, V, J, accuracy = SA(U, V, J, accuracy)
+    printResult(accuracy, J)
+    print time.clock() - start
     """ SA end """
