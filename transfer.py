@@ -79,6 +79,7 @@ def inv_normalization(data, rangeMat):
 
 
 def matchByFrequency(originExp, targetExp):
+    """ match by the order of the number of points within the cluster  """
     series = pd.Series(targetExp)
     targetKeys = series.value_counts().keys()
     series = pd.Series(originExp)
@@ -102,6 +103,7 @@ def stdMat(data, V, exp):
 
 
 def matchByCos(origin, target, seq=None):
+    """ match by the cosine similarity of (means,std) vector """
     originLen = len(origin)
     targetLen = len(target)
     targetDict = {}
@@ -117,6 +119,7 @@ def matchByCos(origin, target, seq=None):
             keys = targetDict.keys()
         mat = cosMat(origin[i], target[[int(item) for item in targetDict]])
         selectIndex = np.argmax(mat)
+        """ match by the Euclidean distance """
         # mat = distanceMat(
         #     origin[i].reshape(1,origin.shape[1]),
         #     target[[int(item) for item in targetDict]])
@@ -127,6 +130,7 @@ def matchByCos(origin, target, seq=None):
 
 
 def matchByChannel(origin, target):
+    """ match by the order of the color channel """
     originIndex = np.argsort(origin[:, 0])
     targetIndex = np.argsort(target[:, 0])
     originLength = len(originIndex)
@@ -139,6 +143,7 @@ def matchByChannel(origin, target):
 
 
 def transferInRGB(originExp, originKeys, targetV, targetKeys):
+    """ color transfer in RGB space instead of lab space """
     img = cv2.imread(originImagePath, 0)
     img = cv2.equalizeHist(img)
     out = convert2D(img, img.shape, 1) * np.ones(3)
@@ -151,6 +156,14 @@ def transferInRGB(originExp, originKeys, targetV, targetKeys):
 
 
 def data2image(data, shape, type='lab'):
+    """ convert a 2-d dataSet to a image data 
+    Args:
+        data: 2-d dataSet, every item is the color of a pixel
+        shape: the shape of the out image
+        *type: the color space of the data
+    Returns:
+        a image mat in RGB color space
+    """
     data = np.uint8(data)
     data = convert3D(data, shape, 3)
     return cv2.cvtColor(data, cv2.COLOR_LAB2RGB)
@@ -217,6 +230,7 @@ def transfer(originU, originV, originData, originRange, targetU, targetV,
 
 
 def showClustering(U, V, rangeMat, data, shape):
+    """ save color segement result of the origin image """
     V = inv_normalization(V, rangeMat)
     data = inv_normalization(data, rangeMat)
     exp = getExpResult(U)
@@ -232,6 +246,17 @@ def showClustering(U, V, rangeMat, data, shape):
 
 
 def loadImageData(url, meanshift=False, position=True):
+    """ load data form a image
+
+    Args:
+        url: the path of the image
+        meanshift: bool, whether use meanshift on the image
+        position: bool, whether add position information to the dataSet
+    Returns:
+        a tuple(dataSet,shape) consist of image information and the image shape
+        the dataSet include the color information of the image in lab color space, 
+        the location(x,y) of every pixels is optional
+    """
     img = cv2.imread(url)
     img = cv2.cvtColor(img, cv2.COLOR_BGR2LAB)
     if meanshift:
@@ -255,23 +280,14 @@ if __name__ == '__main__':
     originRange = rangeMat(originData)
     filterData = normalization(filterData)
     originData = normalization(originData)
-    c = int(5)
-    m = int(2)
-    # targetU, targetV, targetJ = fcm(filterData, m, c)
-    # saveUV(targetU,targetV,'picasso_still_life_5')
-    targetU = loadCsv('./tem/picasso_still_life_5_U.csv')
-    targetV = loadCsv('./tem/picasso_still_life_5_V.csv')
-    targetJ = calcObjective(targetU, targetV, filterData, m)
-    # originU, originV, originJ = fcm(originData, m, c)
-    # saveUV(originU,originV,'scream_5')
-    # originU = loadCsv('./tem/scream_5_U.csv')
-    # originV = loadCsv('./tem/scream_5_V.csv')
-    # originJ = calcObjective(originU, originV, originData, m)
+    c = int(5)  # number of cluster
+    m = int(2)  # power of membership
+    targetU, targetV, targetJ = fcm(filterData, m, c)
+    originU, originV, originJ = fcm(originData, m, c)
     # showClustering(targetU, targetV, filterRange, filterData, filterShape)
-    # showClustering(originU, originV, originRange, originData, originShape)
-    # transfer(originU, originV, originData, originRange, targetU, targetV,
-    #          filterData, filterRange)
-    # print('before origin J:{}').format(originJ)
+    transfer(originU, originV, originData, originRange, targetU, targetV,
+             filterData, filterRange)
+    print('before origin J:{}').format(originJ)
     print('before target J:{}').format(targetJ)
     print time.clock() - start
 
@@ -282,16 +298,15 @@ if __name__ == '__main__':
                          'c': c})
     targetU, targetV, targetJ = filterTs.start(targetU, targetV, targetJ,
                                                filterData, m, c)
-    # originTs = TS(MAX_ITERATION=20,
-    #               extra={'dataSet': originData,
-    #                      'm': m,
-    #                      'c': c})
-    # originU, originV, originJ = originTs.start(originU, originV, originJ,
-    #                                            originData, m, c)
-    # showClustering(originU, originV, originRange, originData, originShape)
-    # showClustering(targetU, targetV, filterRange, filterData, filterShape)
-    # transfer(originU, originV, originData, originRange, targetU, targetV,
-    #          filterData, filterRange)
-    # print('after origin J:{}').format(originJ)
+    originTs = TS(MAX_ITERATION=20,
+                  extra={'dataSet': originData,
+                         'm': m,
+                         'c': c})
+    originU, originV, originJ = originTs.start(originU, originV, originJ,
+                                               originData, m, c)
+    showClustering(targetU, targetV, filterRange, filterData, filterShape)
+    transfer(originU, originV, originData, originRange, targetU, targetV,
+             filterData, filterRange)
+    print('after origin J:{}').format(originJ)
     print('after target J:{}').format(targetJ)
     print time.clock() - start

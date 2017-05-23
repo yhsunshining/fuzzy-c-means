@@ -43,7 +43,7 @@ def loadUV(path):
         path: file name to load without _U.csv and _V.csv
 
     Returns:
-        The tuples(U,V) consist of membership and centriod mat, 
+        The tuple(U,V) consist of membership and centriod mat, 
         the datatype of each mat is ndarray 
     """
     U = loadCsv(path+'_U.csv')
@@ -293,7 +293,7 @@ def fcmIteration(U, V, dataSet, m, c):
         c: numbers of cluster
 
     Returns:
-        The tuples(U,V,J) consist of membership, centriod mat, and the value of objective function
+        The tuple(U,V,J) consist of membership, centriod mat, and the value of objective function
         the mats are all 2-d ndarray
     """
     MAX_ITERATION = 50
