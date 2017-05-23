@@ -28,7 +28,11 @@ def saveUV(U, V, name):
         f.write(k + "\n")
     f.close()
     print 'save V success'
-
+    
+def loadUV(path):
+    U = loadCsv(path+'_U.csv')
+    V = loadCsv(path+'_V.csv')
+    return U,V
 
 def loadCsv(filename):
     """ loas data set """
