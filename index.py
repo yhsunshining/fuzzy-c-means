@@ -1,9 +1,8 @@
-"""these are some tools about fcm"""
+""" some tools about fcm"""
 # -*- coding: utf-8 -*-
 import csv
 import os
 import random
-import shutil
 import time
 from math import exp
 
@@ -16,6 +15,14 @@ import pandas as pd
 
 
 def saveUV(U, V, name):
+    """ save membership and centriod mat as csv files
+
+    Args:
+        U: membership mat of n*c
+        V: centriod mat of c*s
+        name: file name to save
+
+    """
     f = open('./tem/' + name + '_U.csv', 'w')
     for i in U:
         k = ','.join([str(j) for j in i])
@@ -30,13 +37,29 @@ def saveUV(U, V, name):
     print 'save V success'
     
 def loadUV(path):
+    """ load membership and centriod mat from csv files
+
+    Args:
+        path: file name to load without _U.csv and _V.csv
+
+    Returns:
+        The tuples(U,V) consist of membership and centriod mat, 
+        the datatype of each mat is ndarray 
+    """
     U = loadCsv(path+'_U.csv')
     V = loadCsv(path+'_V.csv')
     return U,V
 
-def loadCsv(filename):
-    """ loas data set """
-    lines = csv.reader(open(filename, "rb"))
+def loadCsv(path):
+    """ load data set from csv file
+
+    Args:
+        path: file path to load
+
+    Returns:
+        a 2-d ndarray 
+    """
+    lines = csv.reader(open(path, "rb"))
     dataset = list(lines)
     for i in range(len(dataset)):
         dataset[i] = [float(x) for x in dataset[i]]
@@ -44,6 +67,16 @@ def loadCsv(filename):
 
 
 def normalization(dataSet, axis=0):
+    """ normaliza the mat by axis
+
+    Args:
+        dataSet: a 2-d ndarray to normaliza
+        axis: the axis of the ndarray to normaliza,
+              default is 0
+    
+    Returns:
+        the ndarray be normalized
+    """
     dataSet = np.float32(dataSet)
     colMax = np.max(dataSet, axis=axis)
     colMin = np.min(dataSet, axis=axis)
@@ -52,14 +85,15 @@ def normalization(dataSet, axis=0):
 
 
 def initMembership(n, c):
+    """ init membership mat of n*c by random """
     membership = np.random.uniform(0.001, 1, [n, c])
     return membership / np.sum(membership, axis=1).reshape(n, 1)
 
 
 def initCentroid(dataSet, c):
+    """ init Centroid mat of n*c by random """
     dimension = np.shape(dataSet)[1]
     return np.random.rand(dimension * c).reshape(c, dimension)
-    
 
 
 def calcMembership(centriod, dataSet, m):
@@ -87,6 +121,7 @@ def calcCentriod(membership, dataSet, m):
 
 
 def calcCentroidHessian(centriod, dataSet, m):
+    """ caculate the Hessian mat at a centriod mat """
     n = dataSet.shape[0]
     c, dimension = centriod.shape
     U = calcMembership(centriod, dataSet, m)
@@ -115,6 +150,7 @@ def calcCentroidHessian(centriod, dataSet, m):
 
 
 def calcMembershipHessian(membership, dataSet, m):
+    """ caculate the Hessian mat at a Membership mat """
     dimension = dataSet.shape[1]
     n, c = membership.shape
     centriod = calcCentriod(membership, dataSet, m)
@@ -134,18 +170,21 @@ def calcMembershipHessian(membership, dataSet, m):
 
 
 def calcObjective(membership, centriod, dataSet, m):
+    """ caculate the value of objective function (J)"""
     membershipPower = np.power(membership, m)
     dist = np.power(distanceMat(centriod, dataSet), 2)
     return np.sum(membershipPower * dist)
 
 
 def distance(x, y):
+    """ the Euclidean distance of dot x and dot y """
     np_x = np.array(x)
     np_y = np.array(y)
     return np.linalg.norm(np_x - np_y)
 
 
 def distanceMat(centriod, dataSet):
+    """ the Euclidean distance mat of two 2-d mat """
     c, dimension = centriod.shape
     n = dataSet.shape[0]
     mat = np.zeros((n, c))
@@ -155,7 +194,18 @@ def distanceMat(centriod, dataSet):
 
 
 def drawImage(dataSet, exp, c, figName="figure", V=None):
-    """ draw image in 2-d dataset """
+    """ draw image in 2-d dataset 
+
+    Args:
+        dataSet: the dataSet mat
+        exp: the Clustering results of each dot in dataSet, a 1-d adarray
+        c: Number of clusters
+        figName: figName to save
+        V: calcCentriod mat, if the arg is given, calcCentriod will be drawn on the figure
+
+    Returns:
+        None, save the scatter in path ./images/d31/
+    """
     global figIndex
     contact = np.column_stack((dataSet, exp))
     colors = pltColors.cnames.keys()
@@ -196,10 +246,20 @@ def drawImage(dataSet, exp, c, figName="figure", V=None):
 
 
 def getExpResult(membership):
+    """ get the Clustering results, 
+    item belong to the cluster which the menbership is max
+    """
     return np.array([np.argmax(item) for item in membership])
 
 
 def evaluate(membership, std, dataSet):
+    """ calc the external indicators
+
+    Args:
+        membership: membership mat of n*c (ndarray)
+        std: the classification of each item (1-d ndarray)
+        dataSet: data mat of n*s
+    """
     n = len(std)
     classNum = membership.shape[1]
     exp = getExpResult(membership)
@@ -216,29 +276,36 @@ def evaluate(membership, std, dataSet):
     FMI = (a**2 / ((a + b) * (a + c)))**(1.0 / 2)
     RI = 2 * (a + d) / (n * (n - 1))
     # print JC, FMI, RI
-    # drawImage(dataSet,  exp, classNum, str(FMI))
     return FMI
 
 
 def fcmIteration(U, V, dataSet, m, c):
+    """ fcm iteration start from the init value
+
+    MAX_ITERATION = 50
+    epsilon = 1e-8
+
+    Args:
+        U: Membership mat of n*c (ndarray)
+        V: Centriod mat of c*s (ndarray)
+        dataSet: data mat of n*s
+        m: m in fcm
+        c: numbers of cluster
+
+    Returns:
+        The tuples(U,V,J) consist of membership, centriod mat, and the value of objective function
+        the mats are all 2-d ndarray
+    """
     MAX_ITERATION = 50
     epsilon = 1e-8
     delta = float('inf')
     while delta > epsilon and MAX_ITERATION > 0:
         U = calcMembership(V, dataSet, m)
         # J = calcObjective(U, V, dataSet, m)
-        #drawImage(dataSet,getExpResult(U),c,J,V )
         # print('{0},{1}').format(J, evaluate(U, classes, dataSet))
         _V = calcCentriod(U, dataSet, m)
         # J = calcObjective(U, _V, dataSet, m)
-        #drawImage(dataSet,getExpResult(U),c,J,_V )
         # print('{0},{1}').format(J, evaluate(U, classes, dataSet))
-        # dis = np.linalg.norm(testU - U)**2 + np.linalg.norm(testV - _V)**2
-        # if dis <= np.min(np.sum(np.power(U, 2), axis=0)):
-        #     print True
-        # else :
-        #     print False
-
         delta = distance(V, _V)**2
         V = _V
         MAX_ITERATION -= 1
@@ -247,6 +314,7 @@ def fcmIteration(U, V, dataSet, m, c):
 
 
 def fcm(dataSet, m, c):
+    """ the Entrance of fcm alg. """
     n = len(dataSet)
     U = initMembership(n, c)
     V = initCentroid(dataSet, c)
@@ -254,18 +322,32 @@ def fcm(dataSet, m, c):
 
 
 def sortByCol(ndarray):
+    """ sort 2d ndarray by col val. """
     return ndarray[np.argsort(ndarray[:, 0])]
 
 
 class TabuSearch:
+    """ the Class of Tabu Search
+    include the structure and the tool functions
+
+    Attributes:
+        tabuList: a list of tabu object
+        tabuLength: the tabu length, int, default = 0.25 * MAX_ITERATION
+        maxSearchNum: the number of neighborhood samples
+        MAX_ITERATION: max iteration number of ts
+        neighbourhoodUnit: step length of each move
+        neighbourhoodTimes: step number of each move
+        extra: a dict of extra attributes,default: None, but usually include dataSet, m and c
+    """
     def __init__(self,
                  tabuList=[],
                  tabuLength=None,
                  maxSearchNum=5,
                  MAX_ITERATION=20,
-                 neighbourhoodUnit=0.01,
-                 neighbourhoodTimes=5,
+                 neighbourhoodUnit=0.05,
+                 neighbourhoodTimes=1,
                  extra={}):
+        """Inits TabuSearch with blah."""
         self.tabuList = tabuList[:]
         self.tabuLength = tabuLength or int(0.25 * MAX_ITERATION)
         self.maxSearchNum = maxSearchNum
@@ -276,9 +358,15 @@ class TabuSearch:
             setattr(self, key, extra[key])
 
     def neighbourhoodV(self, V):
+        """ get a random sample from the ring neighborhood of a centroid mat
+        the raduis is the neighborhood length(move length)
+        """
         c, s = V.shape
+
+        """ get a sample from the rect neighborhood of a centroid mat"""
         # _V = np.random.rand(c, s) - 0.5
         # return _V * self.neighbourhoodUnit * self.neighbourhoodTimes + V.copy()
+
         _V = np.random.randn(c, s)
         tem = np.linalg.norm(_V, axis=1)
         r = (np.random.rand(c, 1) * 0.05 +
@@ -286,15 +374,26 @@ class TabuSearch:
         return _V / tem.reshape(c, 1) * r + V
 
     def neighbourhood(self, neighbour):
+         """ get a sample from the ring neighborhood of a mat
+
+         Args:
+            neighbour: the mat
+         """
         return self.neighbourhoodV(neighbour)
 
     def tabuJudge(self, obj):
+        """ tabu judge by local Convergence of FCM 
+        Retuens:
+            a boolean value
+            True: the object is taboo
+            False: the object can be selected
+        """
         listLength = len(self.tabuList)
         c, dimension = obj.shape
         if not listLength:
             return False
         for tabuIndex in range(listLength):
-            sortObj = sortByCol(obj)
+            sortObj = sortByCol(obj)    # sort to eliminate sequential interference
             absMat = np.fabs(self.tabuList[tabuIndex]['value'] - sortObj)
             tabuU = self.tabuList[tabuIndex]['extra']
             sortU = calcMembership(sortObj, self.dataSet, self.m)
@@ -302,16 +401,25 @@ class TabuSearch:
             if dis <= np.min(np.sum(np.power(sortU, 2), axis=0)):
                 print '-------------- tabu hint ------------------'
                 return True
+
+            """ tabu judge by the spectral radius of Heisen matrix"""
             # H = calcMembershipHessian(self.tabuList[tabuIndex]['extra'] , dataSet, m)
             # w = np.linalg.eigvalsh(H)
-            # if not absMat[absMat > self.neighbourhoodUnit].shape[0]:
+            """ tabu judge by local areas """
+            # if not absMat[absMat > 0.01].shape[0]:
             #     print '-------------- tabu hint ------------------'
             #     return True
 
         return False
 
     def addTabuObj(self, tabuObj, extra=None):
-        sortObj = sortByCol(tabuObj)
+        """ add the object into the tabu list
+        
+        Args:
+            tabuObj: the object to be added, deuault: centroid mat
+            extra: extra value to be added, deuault: membership mat
+        """
+        sortObj = sortByCol(tabuObj)    # sort to eliminate sequential interference
         obj = {
             'value': sortObj,
             'extra': extra or calcMembership(sortObj, self.dataSet, self.m)
@@ -324,6 +432,13 @@ class TabuSearch:
         self.addTabuObj(tabuObj)
 
     def start(self, U, V, J, accuracy, dataSet, m, c):
+        """ the Entrance of ts alg.
+
+        epsilon = 1e-6
+
+        use external indicators as evaluation index, 
+        need to calculate the accuracy, so the classes be a global var. 
+        """
         _U, _V, _J, _accuracy = U, V, J, accuracy
         _tabuLength = 0
         epsilon = 1e-6
@@ -339,6 +454,8 @@ class TabuSearch:
             # judge = np.array(
             #     [self.tabuJudge(neighbourV) for neighbourV in neighbourhoodVs])
             """ once loop """
+            # Get the candidate solution from the neighborhood
+            # and judge every solution
             neighbourhoodVs = []
             judge = []
             for i in xrange(self.maxSearchNum):
@@ -349,10 +466,11 @@ class TabuSearch:
             judge = np.array(judge)
 
             if not judge.all():
-                neighbourhoodVs = neighbourhoodVs[judge == False]
+                neighbourhoodVs = neighbourhoodVs[judge == False]   # All taboo, amnesty
             for neighbourV in neighbourhoodVs:
                 temU, temV, temJ = fcmIteration(U, neighbourV, dataSet, m, c)
                 temA = evaluate(temU, classes, dataSet)
+                """ use J as the evaluation index """
                 # if temJ < locationJ:
                 if temA > locationA:
                     locationU = temU
@@ -360,14 +478,15 @@ class TabuSearch:
                     locationJ = temJ
                     locationA = temA
 
-            print('{0},{1}').format(locationJ, locationA)
+            # print('{0},{1}').format(locationJ, locationA)
+            ''' Modify the step and move the current solution '''
             # if locationJ < _J:
             if locationA <= accuracy:
-                self.neighbourhoodTimes = min(50, self.neighbourhoodTimes + 5)
+                self.neighbourhoodTimes = min(10, self.neighbourhoodTimes + 1)
             else:
                 if locationA > _accuracy:
                     _U, _V, _J, _accuracy = locationU, locationV, locationJ, locationA
-                self.neighbourhoodTimes = max(5, self.neighbourhoodTimes - 5)
+                self.neighbourhoodTimes = max(1, self.neighbourhoodTimes - 1)
             U, V, J, accuracy = locationU, locationV, locationJ, locationA
             if _tabuLength < self.tabuLength:
                 self.addTabuObj(locationV)
@@ -404,7 +523,7 @@ def SA(U, V, J, accuracy):
         # p = exp(float(locationJ - temJ) / (k * T))
         # if (temJ <= locationJ) or p > np.random.rand():
         p = exp(float(temA - locationA) * 500 / T)
-        print p
+        # print p
         if (temA >= locationA) or p > np.random.rand():
             locationU, locationV, locationJ, locationA = temU, temV, temJ, temA
         # if (locationJ < _J):
@@ -424,11 +543,7 @@ def printResult(accuracy, J):
 
 
 if __name__ == '__main__':
-    """ clean up dir"""
-    # shutil.rmtree('./images/d31')
-    # os.mkdir('./images/d31')
     timeString = time.strftime('%Y_%m_%d-%H%M%S')
-    """ clean end """
     """ figIndex init """
     global figIndex
     figIndex = 1
@@ -448,24 +563,21 @@ if __name__ == '__main__':
     #     printResult(accuracy, J)
     # end = time.clock()
     # print end-start
-    # U = loadCsv('./tem/d31_U.csv')
-    # V = loadCsv('./tem/d31_V.csv')
-    # J = 3.2091437736/0.826388082328
-    # J = calcObjective(U, V, dataSet, m)
-    # accuracy = evaluate(U, classes, dataSet)
-    # printResult(accuracy, J)
+    U, V, J = fcm(dataSet, m, c)
+    accuracy = evaluate(U, classes, dataSet)
+    printResult(accuracy, J)
     # exp= getExpResult(U)
     # drawImage(dataSet,exp,c,'init',V)
     """ tabu search start """
-    # start = time.clock()
-    # ts = TabuSearch(MAX_ITERATION=40,extra={
-    #     'dataSet':dataSet,
-    #     'm':m,
-    #     'c':c
-    # })
-    # U, V, J, accuracy = ts.start(U, V, J, accuracy, dataSet, m, c)
-    # print time.clock() - start
-    # printResult(accuracy, J)
+    start = time.clock()
+    ts = TabuSearch(MAX_ITERATION=40,extra={
+        'dataSet':dataSet,
+        'm':m,
+        'c':c
+    })
+    U, V, J, accuracy = ts.start(U, V, J, accuracy, dataSet, m, c)
+    print time.clock() - start
+    printResult(accuracy, J)
     # exp = getExpResult(U)
     # H = calcCentroidHessian(V, dataSet, m)
     # w= np.linalg.eigvalsh(H)
@@ -473,10 +585,10 @@ if __name__ == '__main__':
     # drawImage(dataSet, exp, c, timeString, V)
     """ tabu search end """
     """ SA start """
-    start = time.clock()
-    V = initCentroid(dataSet, c)
-    U = J = accuracy = None
-    U, V, J, accuracy = SA(U, V, J, accuracy)
-    printResult(accuracy, J)
-    print time.clock() - start
+    # start = time.clock()
+    # V = initCentroid(dataSet, c)
+    # U = J = accuracy = None
+    # U, V, J, accuracy = SA(U, V, J, accuracy)
+    # printResult(accuracy, J)
+    # print time.clock() - start
     """ SA end """
