@@ -23,12 +23,12 @@ def Kmeans(nodes,cNum,times):
         nodesCount=nodesCount.sum(0)
         for i in range(cNum):
             if nodesCount[i]>0:
-                means[i]=(150*means[i]+nodesHave[:,i].sum(0))/nodesCount[i] 
+                means[i]=(100*means[i]+nodesHave[:,i].sum(0))/nodesCount[i] 
     #get the the sum of clusters
     return len(np.unique(results))    
 
 #read the data file 
-data, shape = loadImageData('./images/filter/scream_200.jpg', True, False)
+data, shape = loadImageData('./2017_05_08-165016.clustering.png', False, False)
 #get the nodes data and answer
 nodes = normalization(data)
 #using the cluster method   
