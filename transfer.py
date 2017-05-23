@@ -34,9 +34,9 @@ class TS(TabuSearch):
 
             if locationJ < _J:
                 _U, _V, _J = locationU, locationV, locationJ
-                self.neighbourhoodTimes = max(5, self.neighbourhoodTimes - 5)
+                self.neighbourhoodTimes = max(1, self.neighbourhoodTimes - 1)
             else:
-                self.neighbourhoodTimes = min(50, self.neighbourhoodTimes + 5)
+                self.neighbourhoodTimes = min(10, self.neighbourhoodTimes + 1)
             U, V = locationU, locationV
             if _tabuLength < self.tabuLength:
                 self.addTabuObj(locationV)
@@ -130,9 +130,11 @@ def matchByChannel(origin, target):
     originIndex = np.argsort(origin[:, 0])
     targetIndex = np.argsort(target[:, 0])
     originLength = len(originIndex)
+    targetLength = len(targetIndex)
     matchMap = {}
     for i in range(originLength):
-        matchMap[originIndex[i]] = targetIndex[i % originLength]
+        ti = i if i<targetLength else targetLength-1
+        matchMap[originIndex[i]] = targetIndex[ti]
     return matchMap
 
 
@@ -167,7 +169,7 @@ def transfer(originU, originV, originData, originRange, targetU, targetV,
     originStd = stdMat(originData, originV, originExp)
     targetStd = stdMat(targetData, targetV, targetExp)
 
-    #use std cos to match
+    #use l channel to match
     series = pd.Series(originExp)
     originKeys = series.value_counts().keys()
     # matchMap = matchByCos(originStd, targetStd, originKeys.tolist())
@@ -245,9 +247,9 @@ def loadImageData(url, meanshift=False, position=True):
 
 if __name__ == '__main__':
     originImagePath = './images/filter/scream.jpg'
-    targetImagePath = './images/filter/stars_200.jpg'
+    targetImagePath = './images/filter/picasso_1.jpg'
     start = time.clock()
-    filterData, filterShape = loadImageData(targetImagePath, False, False)
+    filterData, filterShape = loadImageData(targetImagePath, True, False)
     originData, originShape = loadImageData(originImagePath, True, False)
     filterRange = rangeMat(filterData)
     originRange = rangeMat(originData)
@@ -255,17 +257,17 @@ if __name__ == '__main__':
     originData = normalization(originData)
     c = int(5)
     m = int(2)
-    targetU, targetV, targetJ = fcm(filterData, m, c)
+    # targetU, targetV, targetJ = fcm(filterData, m, c)
     # saveUV(targetU,targetV,'picasso_still_life_5')
-    # targetU = loadCsv('./tem/picasso_still_life_5_U.csv')
-    # targetV = loadCsv('./tem/picasso_still_life_5_V.csv')
-    # targetJ = calcObjective(targetU, targetV, filterData, m)
+    targetU = loadCsv('./tem/picasso_still_life_5_U.csv')
+    targetV = loadCsv('./tem/picasso_still_life_5_V.csv')
+    targetJ = calcObjective(targetU, targetV, filterData, m)
     # originU, originV, originJ = fcm(originData, m, c)
     # saveUV(originU,originV,'scream_5')
     # originU = loadCsv('./tem/scream_5_U.csv')
     # originV = loadCsv('./tem/scream_5_V.csv')
     # originJ = calcObjective(originU, originV, originData, m)
-    showClustering(targetU, targetV, filterRange, filterData, filterShape)
+    # showClustering(targetU, targetV, filterRange, filterData, filterShape)
     # showClustering(originU, originV, originRange, originData, originShape)
     # transfer(originU, originV, originData, originRange, targetU, targetV,
     #          filterData, filterRange)
@@ -273,7 +275,7 @@ if __name__ == '__main__':
     print('before target J:{}').format(targetJ)
     print time.clock() - start
 
-    start = time.clock()
+    # start = time.clock()
     filterTs = TS(MAX_ITERATION=20,
                   extra={'dataSet': filterData,
                          'm': m,
@@ -287,7 +289,7 @@ if __name__ == '__main__':
     # originU, originV, originJ = originTs.start(originU, originV, originJ,
     #                                            originData, m, c)
     # showClustering(originU, originV, originRange, originData, originShape)
-    showClustering(targetU, targetV, filterRange, filterData, filterShape)
+    # showClustering(targetU, targetV, filterRange, filterData, filterShape)
     # transfer(originU, originV, originData, originRange, targetU, targetV,
     #          filterData, filterRange)
     # print('after origin J:{}').format(originJ)
