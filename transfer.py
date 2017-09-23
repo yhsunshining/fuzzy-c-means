@@ -291,7 +291,7 @@ if __name__ == '__main__':
     print('before target J:{}').format(targetJ)
     print time.clock() - start
 
-    # start = time.clock()
+    start = time.clock()
     filterTs = TS(MAX_ITERATION=20,
                   extra={'dataSet': filterData,
                          'm': m,
