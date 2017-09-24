@@ -12,6 +12,7 @@ import matplotlib.colors as pltColors
 import matplotlib.pyplot as plt
 import numpy as np
 import pandas as pd
+from collections import deque
 
 
 def saveUV(U, V, name):
@@ -63,7 +64,7 @@ def loadCsv(path):
     """
     lines = csv.reader(open(path, "rb"))
     dataset = list(lines)
-    for i in range(len(dataset)):
+    for i in xrange(len(dataset)):
         dataset[i] = [float(x) for x in dataset[i]]
     return np.array(dataset)
 
@@ -138,8 +139,8 @@ def calcCentroidHessian(centriod, dataSet, m):
     h = np.repeat(dataSet, c, axis=0).reshape(n, c, dimension) - V
     h = h * membershipPower.reshape(n, c, 1)
     H = np.zeros((c * dimension, c * dimension))
-    for i in range(c):
-        for j in range(c):
+    for i in xrange(c):
+        for j in xrange(c):
             Bij = 4 * m / (m - 1) * np.sum(
                 np.sum(h[:, i] * h[:, j], axis=1) * gkPower)
             if i == j:
@@ -161,7 +162,7 @@ def calcMembershipHessian(membership, dataSet, m):
     h = np.repeat(dataSet, c, axis=0).reshape(n, c, dimension) - V
     h = h * (membershipPower / membership).reshape(n, c, 1)
     H = np.zeros((c * n, c * n))
-    for i in range(c):
+    for i in xrange(c):
         mat = np.dot(h[:, i], h[:, i].T)
         diagD = np.diag(mat) / membershipPower[:, i]
         D = np.diag(diagD)
@@ -190,7 +191,7 @@ def distanceMat(centriod, dataSet):
     c, dimension = centriod.shape
     n = dataSet.shape[0]
     mat = np.zeros((n, c))
-    for i in range(c):
+    for i in xrange(c):
         mat[:, i] = np.linalg.norm(dataSet - centriod[i], axis=1)
     return mat
 
@@ -212,7 +213,7 @@ def drawImage(dataSet, exp, c, figName="figure", V=None):
     contact = np.column_stack((dataSet, exp))
     colors = pltColors.cnames.keys()
     fig = plt.figure()
-    for i in range(c):
+    for i in xrange(c):
         mask = contact[:, -1] == i
         select = contact[mask]
         x, y = select[:, 0], select[:, 1]
@@ -281,7 +282,7 @@ def evaluate(membership, std, dataSet):
     return FMI
 
 
-def fcmIteration(U, V, dataSet, m, c):
+def fcmIteration(U, V, dataSet, m, c, returnType=0):
     """ fcm iteration start from the init value
 
     MAX_ITERATION = 50
@@ -301,6 +302,7 @@ def fcmIteration(U, V, dataSet, m, c):
     MAX_ITERATION = 50
     epsilon = 1e-8
     delta = float('inf')
+    VQue = deque([V])
     while delta > epsilon and MAX_ITERATION > 0:
         U = calcMembership(V, dataSet, m)
         # J = calcObjective(U, V, dataSet, m)
@@ -310,17 +312,21 @@ def fcmIteration(U, V, dataSet, m, c):
         # print('{0},{1}').format(J, evaluate(U, classes, dataSet))
         delta = distance(V, _V)**2
         V = _V
+        VQue.append(V)
         MAX_ITERATION -= 1
     J = calcObjective(U, V, dataSet, m)
-    return U, V, J
+    if returnType == 0:
+        return U, V, J
+    else:
+        return U, V, J, VQue
 
 
-def fcm(dataSet, m, c):
+def fcm(dataSet, m, c, returnType=0):
     """ the Entrance of fcm alg. """
     n = len(dataSet)
     U = initMembership(n, c)
     V = initCentroid(dataSet, c)
-    return fcmIteration(U, V, dataSet, m, c)
+    return fcmIteration(U, V, dataSet, m, c, returnType)
 
 
 def sortByCol(ndarray):
@@ -351,7 +357,7 @@ class TabuSearch:
                  neighbourhoodTimes=1,
                  extra={}):
         """Inits TabuSearch with blah."""
-        self.tabuList = tabuList[:]
+        self.tabuList = deque(tabuList[:])
         self.tabuLength = tabuLength or int(0.25 * MAX_ITERATION)
         self.maxSearchNum = maxSearchNum
         self.MAX_ITERATION = MAX_ITERATION
@@ -376,12 +382,19 @@ class TabuSearch:
              self.neighbourhoodUnit * self.neighbourhoodTimes)
         return _V / tem.reshape(c, 1) * r + V
 
-    def neighbourhood(self, neighbour):
+    def _neighbourhoodV(self, V, lastV):
+        inertia = 0.7
+        flag = 1 if np.random.rand() > 0.5 else -1
+        ineritiaV = V + flag * inertia * (V - lastV)
+        return ineritiaV
+
+    def neighbourhood(self, neighbour, extra):
         """ get a sample from the ring neighborhood of a mat
         Args:
             neighbour: the mat
         """
-        return self.neighbourhoodV(neighbour)
+        return self._neighbourhoodV(neighbour, extra)
+        # return self.neighbourhoodV(neighbour)
 
     def tabuJudge(self, obj):
         """ tabu judge by local Convergence of FCM
@@ -394,7 +407,7 @@ class TabuSearch:
         c, dimension = obj.shape
         if not listLength:
             return False
-        for tabuIndex in range(listLength):
+        for tabuIndex in xrange(listLength):
             # sort to eliminate centroid mat sequential interference
             sortObj = sortByCol(obj)
             absMat = np.fabs(self.tabuList[tabuIndex]['value'] - sortObj)
@@ -435,11 +448,11 @@ class TabuSearch:
         self.tabuList.append(obj)
 
     def updateList(self, tabuObj):
-        if len(self.tabuList):
-            del self.tabuList[0]
+        if self.tabuLength:
+            self.tabuList.popleft()
         self.addTabuObj(tabuObj)
 
-    def start(self, U, V, J, accuracy, dataSet, m, c):
+    def start(self, U, V, J, accuracy, VQue):
         """ the Entrance of ts alg.
 
         epsilon = 1e-6
@@ -467,7 +480,7 @@ class TabuSearch:
             neighbourhoodVs = []
             judge = []
             for i in xrange(self.maxSearchNum):
-                neighbourV = self.neighbourhood(V)
+                neighbourV = self.neighbourhood(V, VQue[-2])
                 neighbourhoodVs.append(neighbourV)
                 judge.append(self.tabuJudge(neighbourV))
             neighbourhoodVs = np.array(neighbourhoodVs)
@@ -477,8 +490,9 @@ class TabuSearch:
                 # All taboo, amnesty
                 neighbourhoodVs = neighbourhoodVs[judge == False]
             for neighbourV in neighbourhoodVs:
-                temU, temV, temJ = fcmIteration(U, neighbourV, dataSet, m, c)
-                temA = evaluate(temU, classes, dataSet)
+                temU, temV, temJ, temVQue = fcmIteration(
+                    U, neighbourV, self.dataSet, self.m, self.c, 1)
+                temA = evaluate(temU, self.classes, self.dataSet)
                 """ use J as the evaluation index """
                 # if temJ < locationJ:
                 if temA > locationA:
@@ -486,6 +500,7 @@ class TabuSearch:
                     locationV = temV
                     locationJ = temJ
                     locationA = temA
+                    locationVQue = temVQue
 
             # print('{0},{1}').format(locationJ, locationA)
             ''' Modify the step and move the current solution '''
@@ -494,9 +509,9 @@ class TabuSearch:
                 self.neighbourhoodTimes = min(10, self.neighbourhoodTimes + 1)
             else:
                 if locationA > _accuracy:
-                    _U, _V, _J, _accuracy = locationU, locationV, locationJ, locationA
+                    _U, _V, _J, _accuracy, _VQue = locationU, locationV, locationJ, locationA, locationVQue
                 self.neighbourhoodTimes = max(1, self.neighbourhoodTimes - 1)
-            U, V, J, accuracy = locationU, locationV, locationJ, locationA
+            U, V, J, accuracy, VQue = locationU, locationV, locationJ, locationA, locationVQue
             if _tabuLength < self.tabuLength:
                 self.addTabuObj(locationV)
                 _tabuLength += 1
@@ -510,39 +525,47 @@ class TabuSearch:
         return _U, _V, _J, _accuracy
 
 
-def SA(U, V, J, accuracy):
-    T0 = 0.2
-    T = TMAX = 500
-    k = 0.9
-    MAX_ITERATION = 100
-    inertia = 0.7
-    epsilon = 1e-8
-    curIndex = 0
-    _U, _V, _J, _accuracy = locationU, locationV, locationJ, locationA = U, V, J, accuracy
-    vShape = V.shape
-    for i in xrange(MAX_ITERATION):
-        lastV = locationV
-        locationU, locationV, locationJ = fcmIteration(
-            locationU, locationV, dataSet, m, c)
-        locationA = evaluate(locationU, classes, dataSet)
-        flag = 1 if np.random.rand() > 0.5 else -1
-        ineritiaV = locationV + flag * inertia * (locationV - lastV)
-        temU, temV, temJ = fcmIteration(U, ineritiaV, dataSet, m, c)
-        temA = evaluate(temU, classes, dataSet)
-        # p = exp(float(locationJ - temJ) / (k * T))
-        # if (temJ <= locationJ) or p > np.random.rand():
-        p = exp(float(temA - locationA) * 500 / T)
-        # print p
-        if (temA >= locationA) or p > np.random.rand():
-            locationU, locationV, locationJ, locationA = temU, temV, temJ, temA
-        # if (locationJ < _J):
-        if (locationA > _accuracy):
-            _U, _V, _J, _accuracy = locationU, locationV, locationJ, locationA
-        T = k * T
-        if (T < T0) or (distance(lastV, locationV)**2 < epsilon):
-            break
-        # print("{0},{1}").format(locationJ, locationA)
-    return _U, _V, _J, _accuracy
+class SA:
+    def __init__(self, param):
+        for key in param.copy():
+            setattr(self, key, param[key])
+        self.V = initCentroid(self.dataSet, self.c)
+        self.U = self.J = self.accuracy = None
+
+    def start(self):
+        T0 = 0.2
+        T = TMAX = 500
+        k = 0.9
+        MAX_ITERATION = 100
+        inertia = 0.7
+        epsilon = 1e-8
+        curIndex = 0
+        _U, _V, _J, _accuracy = locationU, locationV, locationJ, locationA = self.U, self.V, self.J, self.accuracy
+        vShape = self.V.shape
+        for i in xrange(MAX_ITERATION):
+            lastV = locationV
+            locationU, locationV, locationJ = fcmIteration(
+                locationU, locationV, self.dataSet, self.m, self.c)
+            locationA = evaluate(locationU, self.classes, self.dataSet)
+            flag = 1 if np.random.rand() > 0.5 else -1
+            ineritiaV = locationV + flag * inertia * (locationV - lastV)
+            temU, temV, temJ = fcmIteration(
+                self.U, ineritiaV, self.dataSet, self.m, self.c)
+            temA = evaluate(temU, self.classes, self.dataSet)
+            # p = exp(float(locationJ - temJ) / (k * T))
+            # if (temJ <= locationJ) or p > np.random.rand():
+            p = exp(float(temA - locationA) * 500 / T)
+            # print p
+            if (temA >= locationA) or p > np.random.rand():
+                locationU, locationV, locationJ, locationA = temU, temV, temJ, temA
+            # if (locationJ < _J):
+            if (locationA > _accuracy):
+                _U, _V, _J, _accuracy = locationU, locationV, locationJ, locationA
+            T = k * T
+            if (T < T0) or (distance(lastV, locationV)**2 < epsilon):
+                break
+            # print("{0},{1}").format(locationJ, locationA)
+        return _U, _V, _J, _accuracy
 
 
 def printResult(accuracy, J):
@@ -557,13 +580,13 @@ if __name__ == '__main__':
     global figIndex
     figIndex = 1
     """ figIndex end """
-    dataFilePath = '../data/pendigits.all.csv'
+    dataFilePath = '../data/pendigits.tra.csv'
     dataSet = loadCsv(dataFilePath)
 
     global classes
     classes = dataSet[:, -1]
-    dataSet = normalization(dataSet[:, 0:-1])
-    # dataSet = dataSet[:, 0:-1]
+    dataSet = dataSet[:, 0:-1]
+    # dataSet = normalization(dataSet[:, 0:-1])
     c = int(len(set(classes)))
     print c
     m = int(2)
@@ -575,7 +598,7 @@ if __name__ == '__main__':
     #     printResult(accuracy, J)
     # end = time.clock()
     # print end - start
-    U, V, J = fcm(dataSet, m, c)
+    U, V, J, VQue = fcm(dataSet, m, c, 1)
     accuracy = evaluate(U, classes, dataSet)
     printResult(accuracy, J)
     # exp= getExpResult(U)
@@ -584,12 +607,13 @@ if __name__ == '__main__':
     start = time.clock()
     ts = TabuSearch(MAX_ITERATION=10, extra={
         'dataSet': dataSet,
+        'classes': classes,
         'm': m,
         'c': c
     })
-    _U, _V, _J, _accuracy = ts.start(U, V, J, accuracy, dataSet, m, c)
+    U, V, J, accuracy = ts.start(U, V, J, accuracy, VQue)
     print time.clock() - start
-    printResult(_accuracy, _J)
+    printResult(accuracy, J)
     # exp = getExpResult(U)
     # H = calcCentroidHessian(V, dataSet, m)
     # w= np.linalg.eigvalsh(H)
@@ -598,9 +622,13 @@ if __name__ == '__main__':
     """ tabu search end """
     """ SA start """
     start = time.clock()
-    V = initCentroid(dataSet, c)
-    U = J = accuracy = None
-    U, V, J, accuracy = SA(U, V, J, accuracy)
+    sa = SA({
+        'dataSet': dataSet,
+        'classes': classes,
+        'm': m,
+        'c': c
+    })
+    U, V, J, accuracy = sa.start()
     printResult(accuracy, J)
     print time.clock() - start
     """ SA end """
