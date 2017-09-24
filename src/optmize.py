@@ -382,11 +382,23 @@ class TabuSearch:
              self.neighbourhoodUnit * self.neighbourhoodTimes)
         return _V / tem.reshape(c, 1) * r + V
 
-    def neighbourhood(self, neighbour):
+    def _neighbourhoodV(self, V, lastV):
+        c, s = V.shape
+        vector = V - lastV
+        inertia = (self.neighbourhoodUnit * self.neighbourhoodTimes)
+        flagMat = (np.random.rand(c, 1) > 0.5) * 2 - 1
+
+        vector /= np.power(np.sum(np.power(vector, 2),
+                                  axis=1), 0.5).reshape(c, 1)
+        ineritiaV = V + flagMat * inertia * vector
+        return ineritiaV
+
+    def neighbourhood(self, neighbour, extra):
         """ get a sample from the ring neighborhood of a mat
         Args:
             neighbour: the mat
         """
+        # return self._neighbourhoodV(neighbour, extra)
         return self.neighbourhoodV(neighbour)
 
     def tabuJudge(self, obj):
@@ -445,7 +457,7 @@ class TabuSearch:
             self.tabuList.popleft()
         self.addTabuObj(tabuObj)
 
-    def start(self, U, V, J, accuracy):
+    def start(self, U, V, J, accuracy, VQue):
         """ the Entrance of ts alg.
 
         epsilon = 1e-6
@@ -470,10 +482,10 @@ class TabuSearch:
             """ once loop """
             # Get the candidate solution from the neighborhood
             # and judge every solution
-            neighbourhoodVs = []
-            judge = []
+            neighbourhoodVs = deque([])
+            judge = deque([])
             for i in xrange(self.maxSearchNum):
-                neighbourV = self.neighbourhood(V)
+                neighbourV = self.neighbourhood(V, VQue[-2])
                 neighbourhoodVs.append(neighbourV)
                 judge.append(self.tabuJudge(neighbourV))
             neighbourhoodVs = np.array(neighbourhoodVs)
@@ -483,8 +495,8 @@ class TabuSearch:
                 # All taboo, amnesty
                 neighbourhoodVs = neighbourhoodVs[judge == False]
             for neighbourV in neighbourhoodVs:
-                temU, temV, temJ = fcmIteration(
-                    U, neighbourV, self.dataSet, self.m, self.c)
+                temU, temV, temJ, temVQue = fcmIteration(
+                    U, neighbourV, self.dataSet, self.m, self.c, 1)
                 temA = evaluate(temU, self.classes, self.dataSet)
                 """ use J as the evaluation index """
                 # if temJ < locationJ:
@@ -493,6 +505,7 @@ class TabuSearch:
                     locationV = temV
                     locationJ = temJ
                     locationA = temA
+                    locationVQue = temVQue
 
             # print('{0},{1}').format(locationJ, locationA)
             ''' Modify the step and move the current solution '''
@@ -501,9 +514,9 @@ class TabuSearch:
                 self.neighbourhoodTimes = min(10, self.neighbourhoodTimes + 1)
             else:
                 if locationA > _accuracy:
-                    _U, _V, _J, _accuracy = locationU, locationV, locationJ, locationA
+                    _U, _V, _J, _accuracy, _VQue = locationU, locationV, locationJ, locationA, locationVQue
                 self.neighbourhoodTimes = max(1, self.neighbourhoodTimes - 1)
-            U, V, J, accuracy = locationU, locationV, locationJ, locationA
+            U, V, J, accuracy, VQue = locationU, locationV, locationJ, locationA, locationVQue
             if _tabuLength < self.tabuLength:
                 self.addTabuObj(locationV)
                 _tabuLength += 1
@@ -539,8 +552,8 @@ class SA:
             locationU, locationV, locationJ = fcmIteration(
                 locationU, locationV, self.dataSet, self.m, self.c)
             locationA = evaluate(locationU, self.classes, self.dataSet)
-            flag = 1 if np.random.rand() > 0.5 else -1
-            ineritiaV = locationV + flag * inertia * (locationV - lastV)
+            flagMat = (np.random.rand(c, 1) > 0.5) * 2 - 1
+            ineritiaV = locationV + flagMat * inertia * (locationV - lastV)
             temU, temV, temJ = fcmIteration(
                 self.U, ineritiaV, self.dataSet, self.m, self.c)
             temA = evaluate(temU, self.classes, self.dataSet)
@@ -572,7 +585,7 @@ if __name__ == '__main__':
     global figIndex
     figIndex = 1
     """ figIndex end """
-    dataFilePath = '../data/D31.csv'
+    dataFilePath = '../data/d31.csv'
     dataSet = loadCsv(dataFilePath)
 
     global classes
@@ -590,20 +603,23 @@ if __name__ == '__main__':
     #     printResult(accuracy, J)
     # end = time.clock()
     # print end - start
+    start = time.clock()
     U, V, J, VQue = fcm(dataSet, m, c, 1)
     accuracy = evaluate(U, classes, dataSet)
     printResult(accuracy, J)
+    end = time.clock()
+    print end - start
     # exp= getExpResult(U)
     # drawImage(dataSet,exp,c,'init',V)
     """ tabu search start """
     start = time.clock()
-    ts = TabuSearch(MAX_ITERATION=10, extra={
+    ts = TabuSearch(MAX_ITERATION=20, extra={
         'dataSet': dataSet,
         'classes': classes,
         'm': m,
         'c': c
     })
-    U, V, J, accuracy = ts.start(U, V, J, accuracy)
+    U, V, J, accuracy = ts.start(U, V, J, accuracy, VQue)
     print time.clock() - start
     printResult(accuracy, J)
     # exp = getExpResult(U)

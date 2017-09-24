@@ -32,7 +32,7 @@ if __name__ == '__main__':
     for i in range(0, 100):
         _U, _V, _J = fcm(dataSet, m, c)
         _accuracy = evaluate(_U, classes, dataSet)
-        printResult(_accuracy, _J)
+        # printResult(_accuracy, _J)
         start = time.clock()
         ts = TabuSearch(MAX_ITERATION=5, extra={
             'dataSet': dataSet,
@@ -40,9 +40,9 @@ if __name__ == '__main__':
             'm': m,
             'c': c
         })
-        U, V, J, accuracy = ts.start(_U, _V, _J, _accuracy, dataSet, m, c)
-        printResult(accuracy, J)
-        print time.clock() - start
+        U, V, J, accuracy = ts.start(_U, _V, _J, _accuracy)
+        # printResult(accuracy, J)
+        print('{0},{1},{2}').format(_accuracy, accuracy, time.clock() - start)
 
     """ tabu search end """
     """ SA start """
