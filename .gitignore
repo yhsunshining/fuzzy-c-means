@@ -10,6 +10,7 @@ webhook.py
 *.png
 data/lena*
 data/picasso*
+data/*
 
 
 # Byte-compiled / optimized / DLL files

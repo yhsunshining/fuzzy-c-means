@@ -3,8 +3,8 @@ from transfer import *
 import cv2
 
 if __name__ == '__main__':
-    originImagePath = './images/filter/stars_200.jpg'
-    targetImagePath = './images/filter/minotaur_200.jpg'
+    originImagePath = '../images/filter/stars_200.jpg'
+    targetImagePath = '../images/filter/minotaur_200.jpg'
     
     start = time.clock()
     filterData, filterShape = loadImageData(targetImagePath, True, False)
@@ -29,4 +29,4 @@ if __name__ == '__main__':
     out = inv_normalization(out, outRange)
 
     out = data2image(out, img.shape)
-    plt.imsave('./Reinhard.png', out)
+    plt.imsave('../Reinhard.png', out)

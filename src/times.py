@@ -8,7 +8,7 @@ if __name__ == '__main__':
     global figIndex
     figIndex = 1
     """ figIndex end """
-    dataFilePath = './data/pendigit.csv'
+    dataFilePath = '../data/pendigit.csv'
     dataSet = loadCsv(dataFilePath)
 
     global classes

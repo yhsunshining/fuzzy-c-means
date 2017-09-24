@@ -8,6 +8,9 @@
 | diabetes      |   2   |
 | wholesale     |   3   |
 | iris          |   3   |
+| abalone       |   29  |
+| nursery       |   5   |
+
 
 ## user_knowledge
 
@@ -58,11 +61,19 @@
 ### 150
 |   name        |   c       |   meanshift   |
 | --------      |   -----   |   ----        |
-|   stars       |   5,6,5   |   
-|   still_life  |   6       |    
-|   minotaur    |   4       |
+|   stars       |   5,6,5   |   566         |
+|   still_life  |   6       |   999889      |    
+|   minotaur    |   4       |   444
 |   scream      |   7,6,7   |
 |   picasso_2   |   8,7,8   |   7,9,9,8,9,9 |
 |   bridge      |   6       |   7,7,6   
 
 ### 100
+|   name        |   c       |   meanshift   |
+| --------      |   -----   |   ----        |
+|   stars       |   7(8)    |   7(6)
+|   still_life  |   888     |   999
+|   minotaur    |   4(5)    |   666   
+|   scream      |   676     |   778         
+|   picasso_2   |   10      |   10
+|   bridge      |   7       |   9

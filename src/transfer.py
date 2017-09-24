@@ -271,8 +271,8 @@ def loadImageData(url, meanshift=False, position=True):
 
 
 if __name__ == '__main__':
-    originImagePath = './images/filter/scream.jpg'
-    targetImagePath = './images/filter/picasso_1.jpg'
+    originImagePath = '../images/filter/scream.jpg'
+    targetImagePath = '../images/filter/picasso_1.jpg'
     start = time.clock()
     filterData, filterShape = loadImageData(targetImagePath, True, False)
     originData, originShape = loadImageData(originImagePath, True, False)

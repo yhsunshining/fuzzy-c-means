@@ -557,17 +557,8 @@ if __name__ == '__main__':
     global figIndex
     figIndex = 1
     """ figIndex end """
-    dataFilePath = './data/gesture_phase.csv'
+    dataFilePath = '../data/pendigits.all.csv'
     dataSet = loadCsv(dataFilePath)
-    """ split dataset """
-    # a = []
-    # for item in dataSet:
-    #     if np.random.rand() < float(1)/58:
-    #         a.append(item)
-
-    # np.savetxt("./data/covtype-part.csv", np.array(a), delimiter=",")
-
-    """"""
 
     global classes
     classes = dataSet[:, -1]
@@ -578,27 +569,27 @@ if __name__ == '__main__':
     m = int(2)
     """ calc the time of run more times of iteration """
     # start = time.clock()
-    for i in range(0, 100):
-        U, V, J = fcm(dataSet, m, c)
-        accuracy = evaluate(U, classes, dataSet)
-        printResult(accuracy, J)
-    end = time.clock()
+    # for i in range(0, 100):
+    #     U, V, J = fcm(dataSet, m, c)
+    #     accuracy = evaluate(U, classes, dataSet)
+    #     printResult(accuracy, J)
+    # end = time.clock()
     # print end - start
-    # U, V, J = fcm(dataSet, m, c)
-    # accuracy = evaluate(U, classes, dataSet)
-    # printResult(accuracy, J)
+    U, V, J = fcm(dataSet, m, c)
+    accuracy = evaluate(U, classes, dataSet)
+    printResult(accuracy, J)
     # exp= getExpResult(U)
     # drawImage(dataSet,exp,c,'init',V)
     """ tabu search start """
     start = time.clock()
-    ts = TabuSearch(MAX_ITERATION=5, extra={
+    ts = TabuSearch(MAX_ITERATION=10, extra={
         'dataSet': dataSet,
         'm': m,
         'c': c
     })
-    U, V, J, accuracy = ts.start(U, V, J, accuracy, dataSet, m, c)
+    _U, _V, _J, _accuracy = ts.start(U, V, J, accuracy, dataSet, m, c)
     print time.clock() - start
-    printResult(accuracy, J)
+    printResult(_accuracy, _J)
     # exp = getExpResult(U)
     # H = calcCentroidHessian(V, dataSet, m)
     # w= np.linalg.eigvalsh(H)

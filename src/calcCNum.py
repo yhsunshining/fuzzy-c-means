@@ -28,7 +28,7 @@ def Kmeans(nodes,cNum,times):
     return len(np.unique(results))    
 
 #read the data file 
-data, shape = loadImageData('./2017_05_08-165016.clustering.png', False, False)
+data, shape = loadImageData('../2017_05_08-165016.clustering.png', False, False)
 #get the nodes data and answer
 nodes = normalization(data)
 #using the cluster method   
