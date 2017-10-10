@@ -7,7 +7,7 @@ import time
 from math import exp
 
 import matplotlib
-matplotlib.use('Agg')
+# matplotlib.use('Agg')
 import matplotlib.colors as pltColors
 import matplotlib.pyplot as plt
 import numpy as np
@@ -572,7 +572,7 @@ if __name__ == '__main__':
     global figIndex
     figIndex = 1
     """ figIndex end """
-    dataFilePath = '../data/D31.csv'
+    dataFilePath = '../data/pendigits.tra.csv'
     dataSet = loadCsv(dataFilePath)
 
     global classes
@@ -596,16 +596,16 @@ if __name__ == '__main__':
     # exp= getExpResult(U)
     # drawImage(dataSet,exp,c,'init',V)
     """ tabu search start """
-    start = time.clock()
-    ts = TabuSearch(MAX_ITERATION=10, extra={
-        'dataSet': dataSet,
-        'classes': classes,
-        'm': m,
-        'c': c
-    })
-    U, V, J, accuracy = ts.start(U, V, J, accuracy)
-    print time.clock() - start
-    printResult(accuracy, J)
+    # start = time.clock()
+    # ts = TabuSearch(MAX_ITERATION=10, extra={
+    #     'dataSet': dataSet,
+    #     'classes': classes,
+    #     'm': m,
+    #     'c': c
+    # })
+    # U, V, J, accuracy = ts.start(U, V, J, accuracy)
+    # print time.clock() - start
+    # printResult(accuracy, J)
     # exp = getExpResult(U)
     # H = calcCentroidHessian(V, dataSet, m)
     # w= np.linalg.eigvalsh(H)

@@ -7,7 +7,7 @@ import time
 from math import exp
 
 import matplotlib
-matplotlib.use('Agg')
+# matplotlib.use('Agg')
 import matplotlib.colors as pltColors
 import matplotlib.pyplot as plt
 import numpy as np
@@ -24,13 +24,13 @@ def saveUV(U, V, name):
         name: file name to save
 
     """
-    f = open('./tem/' + name + '_U.csv', 'w')
+    f = open('../tem/' + name + '_U.csv', 'w')
     for i in U:
         k = ','.join([str(j) for j in i])
         f.write(k + "\n")
     f.close()
     print 'save U success'
-    f = open('./tem/' + name + '_V.csv', 'w')
+    f = open('../tem/' + name + '_V.csv', 'w')
     for i in V:
         k = ','.join([str(j) for j in i])
         f.write(k + "\n")
@@ -398,8 +398,8 @@ class TabuSearch:
         Args:
             neighbour: the mat
         """
-        # return self._neighbourhoodV(neighbour, extra)
-        return self.neighbourhoodV(neighbour)
+        return self._neighbourhoodV(neighbour, extra)
+        # return self.neighbourhoodV(neighbour)
 
     def tabuJudge(self, obj):
         """ tabu judge by local Convergence of FCM
@@ -552,7 +552,7 @@ class SA:
             locationU, locationV, locationJ = fcmIteration(
                 locationU, locationV, self.dataSet, self.m, self.c)
             locationA = evaluate(locationU, self.classes, self.dataSet)
-            flagMat = (np.random.rand(c, 1) > 0.5) * 2 - 1
+            flagMat = (np.random.rand(self.c, 1) > 0.5) * 2 - 1
             ineritiaV = locationV + flagMat * inertia * (locationV - lastV)
             temU, temV, temJ = fcmIteration(
                 self.U, ineritiaV, self.dataSet, self.m, self.c)
@@ -593,7 +593,6 @@ if __name__ == '__main__':
     dataSet = dataSet[:, 0:-1]
     dataSet = normalization(dataSet)
     c = int(len(set(classes)))
-    print c
     m = int(2)
     """ calc the time of run more times of iteration """
     # start = time.clock()
@@ -609,19 +608,21 @@ if __name__ == '__main__':
     printResult(accuracy, J)
     end = time.clock()
     print end - start
+    saveUV(U,V,'d31')
+    np.savetxt('../tem/d31_VQue',np.array(VQue[-2]),'%.8f',',')
     # exp= getExpResult(U)
     # drawImage(dataSet,exp,c,'init',V)
     """ tabu search start """
-    start = time.clock()
-    ts = TabuSearch(MAX_ITERATION=20, extra={
-        'dataSet': dataSet,
-        'classes': classes,
-        'm': m,
-        'c': c
-    })
-    U, V, J, accuracy = ts.start(U, V, J, accuracy, VQue)
-    print time.clock() - start
-    printResult(accuracy, J)
+    # start = time.clock()
+    # ts = TabuSearch(MAX_ITERATION=5,maxSearchNum=10, extra={
+    #     'dataSet': dataSet,
+    #     'classes': classes,
+    #     'm': m,
+    #     'c': c
+    # })
+    # _U, _V, _J, _accuracy = ts.start(U, V, J, accuracy, VQue)
+    # print time.clock() - start
+    # printResult(_accuracy, _J)
     # exp = getExpResult(U)
     # H = calcCentroidHessian(V, dataSet, m)
     # w= np.linalg.eigvalsh(H)
@@ -629,14 +630,14 @@ if __name__ == '__main__':
     # drawImage(dataSet, exp, c, timeString, V)
     """ tabu search end """
     """ SA start """
-    start = time.clock()
-    sa = SA({
-        'dataSet': dataSet,
-        'classes': classes,
-        'm': m,
-        'c': c
-    })
-    U, V, J, accuracy = sa.start()
-    printResult(accuracy, J)
-    print time.clock() - start
+    # start = time.clock()
+    # sa = SA({
+    #     'dataSet': dataSet,
+    #     'classes': classes,
+    #     'm': m,
+    #     'c': c
+    # })
+    # U, V, J, accuracy = sa.start()
+    # printResult(accuracy, J)
+    # print time.clock() - start
     """ SA end """
