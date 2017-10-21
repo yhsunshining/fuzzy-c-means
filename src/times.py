@@ -8,7 +8,7 @@ if __name__ == '__main__':
     global figIndex
     figIndex = 1
     """ figIndex end """
-    dataFilePath = '../data/d31.csv'
+    dataFilePath = '../data/pendigits.tra.csv'
     dataSet = loadCsv(dataFilePath)
 
     global classes
@@ -29,18 +29,18 @@ if __name__ == '__main__':
 
     """ tabu search start """
 
-    _U, _V = loadUV('../tem/d31')
-    _VQue = loadCsv('../tem/d31_VQue')
-    _VQue = np.array([_VQue,_VQue])
-    _J = calcObjective(_U,_V,dataSet,m)
-    _accuracy = evaluate(_U, classes, dataSet)
-    printResult(_accuracy, _J)
-    for i in range(0, 100):
-        # _U, _V, _J, _VQue = fcm(dataSet, m, c, 1)
-        # _accuracy = evaluate(_U, classes, dataSet)
+    # _U, _V = loadUV('../tem/d31')
+    # _VQue = loadCsv('../tem/d31_VQue')
+    # _VQue = np.array([_VQue,_VQue])
+    # _J = calcObjective(_U,_V,dataSet,m)
+    # _accuracy = evaluate(_U, classes, dataSet)
+    # printResult(_accuracy, _J)
+    for i in range(0, 50):
+        _U, _V, _J, _VQue = fcm(dataSet, m, c, 1)
+        _accuracy = evaluate(_U, classes, dataSet)
         # printResult(_accuracy, _J)
         start = time.clock()
-        ts = TabuSearch(MAX_ITERATION=20, maxSearchNum=5, extra={
+        ts = TabuSearch(MAX_ITERATION=10, maxSearchNum=5, extra={
             'dataSet': dataSet,
             'classes': classes,
             'm': m,
@@ -48,7 +48,7 @@ if __name__ == '__main__':
         })
         U, V, J, accuracy = ts.start(_U, _V, _J, _accuracy, _VQue)
         # printResult(accuracy, J)
-        print('{0},{1},{2}').format(J, accuracy, time.clock() - start)
+        print('{0},{1},{2}').format(_accuracy, accuracy, time.clock() - start)
 
     """ tabu search end """
     """ SA start """
