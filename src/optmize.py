@@ -366,7 +366,7 @@ class TabuSearch:
         for key in extra.copy():
             setattr(self, key, extra[key])
 
-    def neighbourhoodV(self, V):
+    def ringNeighbourhoodV(self, V):
         """ get a random sample from the ring neighborhood of a centroid mat
         the raduis is the neighborhood length(move length)
         """
@@ -382,7 +382,15 @@ class TabuSearch:
              self.neighbourhoodUnit * self.neighbourhoodTimes)
         return _V / tem.reshape(c, 1) * r + V
 
-    def _neighbourhoodV(self, V, lastV):
+    def circleNeighbourhoodV(self, V):
+        c, s = V.shape
+
+        _V = np.random.randn(c, s)
+        tem = np.linalg.norm(_V, axis=1)
+        r = (np.random.rand(c, 1) * self.neighbourhoodUnit * self.neighbourhoodTimes)
+        return _V / tem.reshape(c, 1) * r + V
+
+    def vectorNeighbourhoodV(self, V, lastV):
         c, s = V.shape
         vector = V - lastV
         inertia = (self.neighbourhoodUnit * self.neighbourhoodTimes)
@@ -398,8 +406,8 @@ class TabuSearch:
         Args:
             neighbour: the mat
         """
-        return self._neighbourhoodV(neighbour, extra)
-        # return self.neighbourhoodV(neighbour)
+        return self.vectorNeighbourhoodV(neighbour, extra)
+        # return self.circleNeighbourhoodV(neighbour)
 
     def tabuJudge(self, obj):
         """ tabu judge by local Convergence of FCM

@@ -24,7 +24,7 @@ if __name__ == '__main__':
     dataFilePath = './{0}'
     fcm = 'fcm.200.tra.log'
     sa = 'sa.100.tra.log'
-    tsfcm='new'
+    tsfcm='circle.log'
     # x_fcm = loadCsv(dataFilePath.format(fcm))[0:99,-1]
     x_fcm = loadCsv(dataFilePath.format(tsfcm))[0:99,0]
     x_tsfcm = loadCsv(dataFilePath.format(tsfcm))[0:99,1]

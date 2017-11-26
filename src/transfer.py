@@ -1,11 +1,11 @@
 import numpy as np
 import pandas as pd
-from index import *
+from optmize import *
 import cv2
 
 
 class TS(TabuSearch):
-    def start(self, U, V, J, dataSet, m, c):
+    def start(self, U, V, J, VQue):
         _U, _V, _J = U, V, J
         curTimes = 0
         _tabuLength = 0
@@ -14,10 +14,10 @@ class TS(TabuSearch):
         while (curTimes < self.MAX_ITERATION):
             locationJ = float('inf')
             locationU = locationV = None
-            neighbourhoodVs = []
-            judge = []
+            neighbourhoodVs = deque([])
+            judge = deque([])
             for i in xrange(self.maxSearchNum):
-                neighbourV = self.neighbourhood(V)
+                neighbourV = self.circleNeighbourhoodV(V)
                 neighbourhoodVs.append(neighbourV)
                 judge.append(self.tabuJudge(neighbourV))
             neighbourhoodVs = np.array(neighbourhoodVs)
@@ -26,11 +26,12 @@ class TS(TabuSearch):
             if not judge.all():
                 neighbourhoodVs = neighbourhoodVs[judge == False]
             for neighbourV in neighbourhoodVs:
-                temU, temV, temJ = fcmIteration(U, neighbourV, dataSet, m, c)
+                temU, temV, temJ,temVQue = fcmIteration(U, neighbourV, self.dataSet, self.m, self.c,1)
                 if temJ < locationJ:
                     locationU = temU
                     locationV = temV
                     locationJ = temJ
+                    locationVQue = temVQue
 
             if locationJ < _J:
                 _U, _V, _J = locationU, locationV, locationJ
@@ -260,7 +261,7 @@ def loadImageData(url, meanshift=False, position=True):
     img = cv2.imread(url)
     img = cv2.cvtColor(img, cv2.COLOR_BGR2LAB)
     if meanshift:
-        img = cv2.pyrMeanShiftFiltering(img, 9, 20)
+        img = cv2.pyrMeanShiftFiltering(img, 9, 50)
     out = conv2D = np.float32(convert2D(img, img.shape, 3))
     if position:
         out = np.zeros((conv2D.shape[0], conv2D.shape[1] + 2))
@@ -282,31 +283,31 @@ if __name__ == '__main__':
     originData = normalization(originData)
     c = int(5)  # number of cluster
     m = int(2)  # power of membership
-    targetU, targetV, targetJ = fcm(filterData, m, c)
-    originU, originV, originJ = fcm(originData, m, c)
+    originU, originV, originJ,originVque = fcm(originData, m, c,1)
+    # targetU, targetV, targetJ,targetVque = fcm(filterData, m, c,1)
+    showClustering(originU, originV, originRange, originData, originShape)
     # showClustering(targetU, targetV, filterRange, filterData, filterShape)
-    transfer(originU, originV, originData, originRange, targetU, targetV,
-             filterData, filterRange)
+    # transfer(originU, originV, originData, originRange, targetU, targetV,
+    #          filterData, filterRange)
     print('before origin J:{}').format(originJ)
-    print('before target J:{}').format(targetJ)
+    # print('before target J:{}').format(targetJ)
     print time.clock() - start
 
     start = time.clock()
-    filterTs = TS(MAX_ITERATION=20,
-                  extra={'dataSet': filterData,
-                         'm': m,
-                         'c': c})
-    targetU, targetV, targetJ = filterTs.start(targetU, targetV, targetJ,
-                                               filterData, m, c)
-    originTs = TS(MAX_ITERATION=20,
+    # filterTs = TS(MAX_ITERATION=20,
+    #               extra={'dataSet': filterData,
+    #                      'm': m,
+    #                      'c': c})
+    # targetU, targetV, targetJ = filterTs.start(targetU, targetV, targetJ, targetVque)
+    originTs = TS(MAX_ITERATION=40,
                   extra={'dataSet': originData,
                          'm': m,
                          'c': c})
-    originU, originV, originJ = originTs.start(originU, originV, originJ,
-                                               originData, m, c)
-    showClustering(targetU, targetV, filterRange, filterData, filterShape)
-    transfer(originU, originV, originData, originRange, targetU, targetV,
-             filterData, filterRange)
+    originU, originV, originJ = originTs.start(originU, originV, originJ, originVque)
+    showClustering(originU, originV, originRange, originData, originShape)
+    # showClustering(targetU, targetV, filterRange, filterData, filterShape)
+    # transfer(originU, originV, originData, originRange, targetU, targetV,
+    #          filterData, filterRange)
     print('after origin J:{}').format(originJ)
-    print('after target J:{}').format(targetJ)
+    # print('after target J:{}').format(targetJ)
     print time.clock() - start

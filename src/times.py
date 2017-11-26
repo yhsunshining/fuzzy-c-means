@@ -35,7 +35,7 @@ if __name__ == '__main__':
     # _J = calcObjective(_U,_V,dataSet,m)
     # _accuracy = evaluate(_U, classes, dataSet)
     # printResult(_accuracy, _J)
-    for i in range(0, 50):
+    for i in range(0, 100):
         _U, _V, _J, _VQue = fcm(dataSet, m, c, 1)
         _accuracy = evaluate(_U, classes, dataSet)
         # printResult(_accuracy, _J)
