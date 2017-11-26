@@ -6,8 +6,8 @@ from sklearn import metrics
 from sklearn.metrics import pairwise_distances
 
 def evaluate(membership,dataSet):
-    exp = getExpResult(membership)
-    index = metrics.silhouette_score(dataSet, exp, metric='euclidean')
+    exp = np.array(getExpResult(membership))
+    index = metrics.silhouette_score(np.array(dataSet), exp, metric='euclidean')
     print index
     return index
 
@@ -287,8 +287,8 @@ def loadImageData(url, meanshift=False, position=True):
 
 
 if __name__ == '__main__':
-    originImagePath = '../images/filter/scream.jpg'
-    targetImagePath = '../images/filter/picasso_1.jpg'
+    originImagePath = '../images/filter/scream_200.jpg'
+    targetImagePath = '../images/filter/picasso_1_200.jpg'
     start = time.clock()
     filterData, filterShape = loadImageData(targetImagePath, True, False)
     originData, originShape = loadImageData(originImagePath, True, False)
@@ -307,21 +307,21 @@ if __name__ == '__main__':
     #          filterData, filterRange)
     # print('before origin J:{}').format(originJ)
     # print('before target J:{}').format(targetJ)
-    print time.clock() - start
+    # print time.clock() - start
 
-    start = time.clock()
+    # start = time.clock()
     # filterTs = TS(MAX_ITERATION=20,
     #               extra={'dataSet': filterData,
     #                      'm': m,
     #                      'c': c})
     # targetU, targetV, targetJ = filterTs.start(targetU, targetV, targetJ, targetVque)
-    originTs = TS(MAX_ITERATION=40,
-                  extra={'dataSet': originData,
-                         'm': m,
-                         'c': c})
-    originU, originV, originJ = originTs.start(
-        originU, originV, originJ, originVque)
-    print evaluate(originU,originData)
+    # originTs = TS(MAX_ITERATION=40,
+    #               extra={'dataSet': originData,
+    #                      'm': m,
+    #                      'c': c})
+    # originU, originV, originJ = originTs.start(
+    #     originU, originV, originJ, originVque)
+    # print evaluate(originU,originData)
     # showClustering(originU, originV, originRange, originData, originShape)
     # showClustering(targetU, targetV, filterRange, filterData, filterShape)
     # transfer(originU, originV, originData, originRange, targetU, targetV,
