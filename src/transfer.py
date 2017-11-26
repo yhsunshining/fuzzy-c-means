@@ -2,6 +2,14 @@ import numpy as np
 import pandas as pd
 from optmize import *
 import cv2
+from sklearn import metrics
+from sklearn.metrics import pairwise_distances
+
+def evaluate(membership,dataSet):
+    exp = getExpResult(membership)
+    index = metrics.silhouette_score(dataSet, exp, metric='euclidean')
+    print index
+    return index
 
 
 class TS(TabuSearch):
@@ -13,6 +21,7 @@ class TS(TabuSearch):
         lastlocationJ = _J
         while (curTimes < self.MAX_ITERATION):
             locationJ = float('inf')
+            locationA = 0
             locationU = locationV = None
             neighbourhoodVs = deque([])
             judge = deque([])
@@ -26,17 +35,23 @@ class TS(TabuSearch):
             if not judge.all():
                 neighbourhoodVs = neighbourhoodVs[judge == False]
             for neighbourV in neighbourhoodVs:
-                temU, temV, temJ,temVQue = fcmIteration(U, neighbourV, self.dataSet, self.m, self.c,1)
-                if temJ < locationJ:
+                temU, temV, temJ, temVQue = fcmIteration(
+                    U, neighbourV, self.dataSet, self.m, self.c, 1)
+                temA = evaluate(temU, self.dataSet)
+                # if temJ < locationJ:
+                if temA > locationA:
                     locationU = temU
                     locationV = temV
                     locationJ = temJ
+                    locationA = temA
                     locationVQue = temVQue
 
-            if locationJ < _J:
-                _U, _V, _J = locationU, locationV, locationJ
+            # if locationJ < _J:
+            if locationA <= accuracy:
                 self.neighbourhoodTimes = max(1, self.neighbourhoodTimes - 1)
             else:
+                if locationA > _accuracy:
+                    _U, _V, _J, _accuracy, _VQue = locationU, locationV, locationJ, locationA, locationVQue
                 self.neighbourhoodTimes = min(10, self.neighbourhoodTimes + 1)
             U, V = locationU, locationV
             if _tabuLength < self.tabuLength:
@@ -138,7 +153,7 @@ def matchByChannel(origin, target):
     targetLength = len(targetIndex)
     matchMap = {}
     for i in range(originLength):
-        ti = i if i<targetLength else targetLength-1
+        ti = i if i < targetLength else targetLength - 1
         matchMap[originIndex[i]] = targetIndex[ti]
     return matchMap
 
@@ -183,7 +198,7 @@ def transfer(originU, originV, originData, originRange, targetU, targetV,
     originStd = stdMat(originData, originV, originExp)
     targetStd = stdMat(targetData, targetV, targetExp)
 
-    #use l channel to match
+    # use l channel to match
     series = pd.Series(originExp)
     originKeys = series.value_counts().keys()
     # matchMap = matchByCos(originStd, targetStd, originKeys.tolist())
@@ -199,7 +214,7 @@ def transfer(originU, originV, originData, originRange, targetU, targetV,
     # matchMap = matchByFrequency(originExp,targetExp)
 
     img = cv2.imread(originImagePath)
-    # out = convert3D(img,img.shape,1)* np.ones(3) 
+    # out = convert3D(img,img.shape,1)* np.ones(3)
     img = cv2.cvtColor(img, cv2.COLOR_BGR2LAB)
     out = np.float_(convert2D(img, img.shape, 3))
     out_color = out.copy()
@@ -283,13 +298,14 @@ if __name__ == '__main__':
     originData = normalization(originData)
     c = int(5)  # number of cluster
     m = int(2)  # power of membership
-    originU, originV, originJ,originVque = fcm(originData, m, c,1)
+    originU, originV, originJ, originVque = fcm(originData, m, c, 1)
+    print evaluate(originU,originData)
     # targetU, targetV, targetJ,targetVque = fcm(filterData, m, c,1)
-    showClustering(originU, originV, originRange, originData, originShape)
+    # showClustering(originU, originV, originRange, originData, originShape)
     # showClustering(targetU, targetV, filterRange, filterData, filterShape)
     # transfer(originU, originV, originData, originRange, targetU, targetV,
     #          filterData, filterRange)
-    print('before origin J:{}').format(originJ)
+    # print('before origin J:{}').format(originJ)
     # print('before target J:{}').format(targetJ)
     print time.clock() - start
 
@@ -303,11 +319,13 @@ if __name__ == '__main__':
                   extra={'dataSet': originData,
                          'm': m,
                          'c': c})
-    originU, originV, originJ = originTs.start(originU, originV, originJ, originVque)
-    showClustering(originU, originV, originRange, originData, originShape)
+    originU, originV, originJ = originTs.start(
+        originU, originV, originJ, originVque)
+    print evaluate(originU,originData)
+    # showClustering(originU, originV, originRange, originData, originShape)
     # showClustering(targetU, targetV, filterRange, filterData, filterShape)
     # transfer(originU, originV, originData, originRange, targetU, targetV,
     #          filterData, filterRange)
-    print('after origin J:{}').format(originJ)
+    # print('after origin J:{}').format(originJ)
     # print('after target J:{}').format(targetJ)
     print time.clock() - start

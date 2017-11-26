@@ -7,7 +7,7 @@ import time
 from math import exp
 
 import matplotlib
-# matplotlib.use('Agg')
+#matplotlib.use('Agg')
 import matplotlib.colors as pltColors
 import matplotlib.pyplot as plt
 import numpy as np
