@@ -120,9 +120,9 @@ class ABC():
                     U = calcMembership(self.X[i], self.dataSet, 2)
                     tmp = evaluate(U, self.classes, self.dataSet)
                     self.p_fit[i] = tmp
-                        if tmp > self.fit:
-                            self.fit = tmp
-                            self.gbest = self.X[i]
+                    if tmp > self.fit:
+                        self.fit = tmp
+                        self.gbest = self.X[i]
 
             U = calcMembership(self.gbest, self.dataSet, m)
             U, self.gbest, J = fcmIteration(
