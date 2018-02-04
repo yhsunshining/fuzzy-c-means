@@ -20,11 +20,12 @@ class ABC():
         self.X = np.zeros((self.pN, c, s))
         self.gbest = np.zeros((1, c, s))
         self.p_fit = np.zeros(self.pN)
-        self.p_fit = np.zeros(self.pN)
+        self.trail = np.zeros(self.pN)
         self.fit = 1e-10
         self.limit = int(max_iter * pN / 10)
         self.dataSet = dataSet
         self.c = c
+        self.s = s
         self.classes = classes
 
 #---------------------OBJECT FUNCTION Sphere-----------------------------
@@ -80,13 +81,13 @@ class ABC():
             for i in xrange(self.pN):
                 k = self.random(i)
                 j = int(np.random.rand() * self.c)
-                V = self.X.copy()
+                V = self.X[i].copy()
                 # φij · (xij − xkj ) + ψij · (gbestj − xij )
                 V[j] = self.X[i, j] + self.phi() * (self.X[i, j] - self.X[k, j]) + \
                     self.psi() * (self.gbest[j] - self.X[i, j])
                 fit = self.function(V)
                 if fit > self.p_fit[i]:
-                    self.X = V
+                    self.X[i] = V
                     self.p_fit[i] = fit
                     self.trail[i] = 0
                     if fit > self.fit:
@@ -99,13 +100,13 @@ class ABC():
                 i = self.calculateProbabilities()
                 k = self.random(i)
                 j = int(np.random.rand() * self.c)
-                V = self.X.cpoy()
+                V = self.X[i].copy()
                 # φij · (xij − xkj ) + ψij · (gbestj − xij )
                 V[j] = self.X[i, j] + self.phi() * (self.X[i, j] - self.X[k, j]) + \
                     self.psi() * (self.gbest[j] - self.X[i, j])
                 fit = self.function(V)
                 if fit > self.p_fit[i]:
-                    self.X = V
+                    self.X[i] = V
                     self.p_fit[i] = fit
                     self.trail[i] = 0
                     if fit > self.fit:
@@ -128,7 +129,7 @@ class ABC():
             U, self.gbest, J = fcmIteration(
                 U, self.gbest, self.dataSet, m, self.c)
             self.fit = evaluate(U, self.classes, self.dataSet)
-            fitness.push(self.fit)
+            fitness.append(self.fit)
         return fitness
 
 
