@@ -378,7 +378,7 @@ class TabuSearch:
 
         _V = np.random.randn(c, s)
         tem = np.linalg.norm(_V, axis=1)
-        r = (np.random.rand(c, 1) * 0.05 +
+        r = (np.random.rand(c, 1) * 1 +
              self.neighbourhoodUnit * self.neighbourhoodTimes)
         return _V / tem.reshape(c, 1) * r + V
 
@@ -534,7 +534,7 @@ class TabuSearch:
             #     break
             # else:
             #     lastlocationJ = locationJ
-            print locationA
+            # print locationA
 
         return _U, _V, _J, _accuracy
 
@@ -616,7 +616,7 @@ if __name__ == '__main__':
     # drawImage(dataSet,exp,c,'init',V)
     """ tabu search start """
     start = time.clock()
-    ts = TabuSearch(MAX_ITERATION=20,maxSearchNum=5, extra={
+    ts = TabuSearch(MAX_ITERATION=10,maxSearchNum=5, extra={
         'dataSet': dataSet,
         'classes': classes,
         'm': m,
