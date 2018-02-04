@@ -353,7 +353,7 @@ class TabuSearch:
                  tabuLength=None,
                  maxSearchNum=5,
                  MAX_ITERATION=20,
-                 neighbourhoodUnit=0.05,
+                 neighbourhoodUnit=0.1,
                  neighbourhoodTimes=1,
                  extra={}):
         """Inits TabuSearch with blah."""
@@ -534,6 +534,7 @@ class TabuSearch:
             #     break
             # else:
             #     lastlocationJ = locationJ
+            print locationA
 
         return _U, _V, _J, _accuracy
 
@@ -593,7 +594,7 @@ if __name__ == '__main__':
     global figIndex
     figIndex = 1
     """ figIndex end """
-    dataFilePath = '../data/d31.csv'
+    dataFilePath = '../data/pendigits.tra.csv'
     dataSet = loadCsv(dataFilePath)
 
     global classes
@@ -603,33 +604,26 @@ if __name__ == '__main__':
     c = int(len(set(classes)))
     m = int(2)
     """ calc the time of run more times of iteration """
-    # start = time.clock()
-    # for i in range(0, 100):
-    #     U, V, J = fcm(dataSet, m, c)
-    #     accuracy = evaluate(U, classes, dataSet)
-    #     printResult(accuracy, J)
-    # end = time.clock()
-    # print end - start
     start = time.clock()
     U, V, J, VQue = fcm(dataSet, m, c, 1)
     accuracy = evaluate(U, classes, dataSet)
     printResult(accuracy, J)
     end = time.clock()
     print end - start
-    saveUV(U,V,'d31')
-    np.savetxt('../tem/d31_VQue',np.array(VQue[-2]),'%.8f',',')
+    # saveUV(U,V,'d31')
+    # np.savetxt('../tem/d31_VQue',np.array(VQue[-2]),'%.8f',',')
     # exp= getExpResult(U)
     # drawImage(dataSet,exp,c,'init',V)
     """ tabu search start """
-    # start = time.clock()
-    # ts = TabuSearch(MAX_ITERATION=5,maxSearchNum=10, extra={
-    #     'dataSet': dataSet,
-    #     'classes': classes,
-    #     'm': m,
-    #     'c': c
-    # })
-    # _U, _V, _J, _accuracy = ts.start(U, V, J, accuracy, VQue)
-    # print time.clock() - start
+    start = time.clock()
+    ts = TabuSearch(MAX_ITERATION=20,maxSearchNum=5, extra={
+        'dataSet': dataSet,
+        'classes': classes,
+        'm': m,
+        'c': c
+    })
+    _U, _V, _J, _accuracy = ts.start(U, V, J, accuracy, VQue)
+    print time.clock() - start
     # printResult(_accuracy, _J)
     # exp = getExpResult(U)
     # H = calcCentroidHessian(V, dataSet, m)
