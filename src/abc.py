@@ -80,7 +80,7 @@ class ABC():
             for i in xrange(self.pN):
                 k = self.random(i)
                 j = int(np.random.rand() * self.c)
-                V = self.X.cpoy()
+                V = self.X.copy()
                 # φij · (xij − xkj ) + ψij · (gbestj − xij )
                 V[j] = self.X[i, j] + self.phi() * (self.X[i, j] - self.X[k, j]) + \
                     self.psi() * (self.gbest[j] - self.X[i, j])
