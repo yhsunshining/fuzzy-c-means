@@ -43,7 +43,7 @@ class PSO():
             self.pbest[i] = self.X[i]
             tmp = evaluate(U,self.classes,self.dataSet)
             self.p_fit[i] = tmp
-            if(tmp < self.fit):
+            if(tmp > self.fit):
                 self.fit = tmp
                 self.gbest = self.X[i]
     
